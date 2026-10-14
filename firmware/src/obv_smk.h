@@ -14,7 +14,7 @@
  *               same path as the keys (EDIT held: they erase their note)
  *   keys        velocity from the unit's factory curves (hal/smk_input.h); the FM-1 plays 100
  *   faders      two banks, FADER BANK switches (LED lit on B): A = PERFORM's CUTOFF RESO ENV AMT RELEASE,
- *               B = CHORUS / DELAY / REVERB mix and MASTER (the level K1 turns). A fader acts once it moves (also
+ *               B = CHORUS / DELAY / REVERB mix and MASTER (the level K5 turns). A fader acts once it moves (also
  *               after a bank change), so nothing jumps; a short bar under the page shows it
  *   wheels      pitch = bend, +-2 semitones (the program's BEND range, 2 in every factory program), every voice;
  *               mod = a gentle vibrato from the program's LFO, up to +-1/2 semitone (obv_engine.h ctl_vib).
@@ -190,7 +190,7 @@ static void smk_faders(uint32_t *dirty_page, uint32_t *dirty_hdr, uint32_t *dirt
             *dirty_page = *dirty_hdr = 1;
             if (smk_bank) *dirty_tags = 1;      /* (the FX tag) */
         } else {
-            smk_master = (int32_t)(v * 1023u / 127u);   /* MASTER: the level K1 turns (hal/smk_input.h) */
+            smk_master = (int32_t)(v * 1023u / 127u);   /* MASTER: the level K5 turns (hal/smk_input.h) */
             fmt_u(val, (v * 100u + 63u) / 127u); scat(val, "%");
         }
         l1[0] = 0;

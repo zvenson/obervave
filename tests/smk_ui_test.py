@@ -68,12 +68,12 @@ def main():
     st = state(d, 6000)
     check("a held pad shows its step and the knobs edit it", st["held"] == "5" and st["view"] == "1", st)
     s = steps(d, 6300)
-    check("K5 (knob 1) moved the held step's chord up, kept when let go", s.get(6) == (61, 64, True), s)
+    check("K1 (knob 1) moved the held step's chord up, kept when let go", s.get(6) == (61, 64, True), s)
     check("the view goes back when the pad is let go", state(d, 6300)["view"] == "0", state(d, 6300))
     s = steps(d, 7000)
     check("hold pad 9 + tap pad 12: a long note 9-12", all(k in s for k in (9, 10, 11, 12)), s)
     st = state(d, 7900)
-    check("SEQ + K8 (a fast turn: x3): 64 steps; > shows page 2 on the pads", st["len"] == "64" and st["seqpg"] == "1", st)
+    check("SEQ + K4 (a fast turn: x3): 64 steps; > shows page 2 on the pads", st["len"] == "64" and st["seqpg"] == "1", st)
     check("a pad on page 2 sets step 17", steps(d, 7900).get(1, (0,))[0] == 60, d[7900]["STEPS"])
     check("< back to page 1", state(d, 8200)["seqpg"] == "0", state(d, 8200))
     p = pads(d, 8200)
@@ -82,7 +82,7 @@ def main():
     check("set steps lit in track A's blue, empty ones dark but the beats", b > r and p[1] == 0 and p[2] == 0 and
           all(p[i] for i in (0, 4, 5, 8, 9, 10, 11)), [f"{x:06X}" for x in p])
     st, p = state(d, 8500), pads(d, 8500)
-    check("K3: track B (off): no steps, the pads dark", st["trk"] == "1" and st["len"] == "0" and not any(p), (st, p))
+    check("K8: track B (off): no steps, the pads dark", st["trk"] == "1" and st["len"] == "0" and not any(p), (st, p))
 
     st = state(d, 9200)
     check("the page moved under a held pad: let go, no step stays held", st["held"] == "-1" and st["view"] == "0", st)

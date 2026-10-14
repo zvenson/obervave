@@ -16,7 +16,7 @@ firmware:
       USB-MIDI in and clock work as before)
     - the key LEDs (the SMK has none): the FM-1's lit keys (notes that sound, the SEQ / GLO / SAVE layers' tiles)
       have no place; the step pads show the steps instead, the screen the layers
-    - the MASTER pot as an absolute pot: K1 is an endless encoder (a virtual pot, 24 of 1024 a detent), and
+    - the MASTER pot as an absolute pot: K5 is an endless encoder (a virtual pot, 24 of 1024 a detent), and
       fader 4 in bank B sets the same level
     - no USB serial console (OberVave has none on the FM-1 either): the kit's smk / padtest / leds commands are
       replaced by the panel check (KNOB BANK held)
@@ -83,7 +83,7 @@ faders:
   bank_button: FADER BANK       # LED lit on bank B
   banks:
     A: [CUTOFF, RESO, ENV AMT, RELEASE]          # OberVave's PERFORM page
-    B: [CHORUS mix, DELAY mix, REVERB mix, MASTER volume]   # MASTER: the level K1 turns (a virtual pot)
+    B: [CHORUS mix, DELAY mix, REVERB mix, MASTER volume]   # MASTER: the level K5 turns (a virtual pot)
   screen: bar                   # a short overlay in the hint strip: "A1 CUTOFF 2.4k" and a bar, 1.5 s
 
 wheels:
@@ -101,25 +101,26 @@ rules:
   no_doubles: true
   doubles_allowed:
     - bank A faders = the PERFORM page's knobs (the owner's choice)
-    - fader 4 in bank B = K1 MASTER (the owner's "master VOLUME")
+    - fader 4 in bank B = K5 MASTER (the owner's "master VOLUME")
 
 knobs:
-  layout: fm1
-  K1: master                    # the FM-1's MASTER pot as a virtual pot (24 of 1024 a detent)
-  K2: select                    # SELECT: the tempo
-  K3: algorithm                 # ALGORITHM: track A / B
-  K4: presets                   # PRESETS: the program
-  K5: knob 1                    # the page's four knobs, as on the FM-1 (the screen's row of four)
-  K6: knob 2
-  K7: knob 3
-  K8: knob 4
+  layout: custom                # the page's four knobs first (K1-K4), the FM-1's other four after them (K5-K8);
+                                # the encoders' order and decoding stay per physical knob
+  K1: knob 1                    # the page's four knobs, as on the FM-1 (the screen's row of four, left to right)
+  K2: knob 2
+  K3: knob 3
+  K4: knob 4
+  K5: master                    # the FM-1's MASTER pot as a virtual pot (24 of 1024 a detent)
+  K6: select                    # SELECT: the tempo
+  K7: presets                   # PRESETS: the program
+  K8: algorithm                 # ALGORITHM: track A / B
   step: detent
-  pages: {}                     # (K5-K8 are KNOB 1-4: all eight knobs keep FM-1 jobs, none is left over)
+  pages: {}                     # (K1-K4 are KNOB 1-4: all eight knobs keep FM-1 jobs, none is left over)
 
 buttons:
   map: printed                  # PATCH = HOME, PARA = EDIT, CHORD = ENV, NOTE REPEAT = LFO, SCALE = SEL, GLOBE = GLO,
                                 # BT = SAVE, ARP, FX, SEQ, SEQ PLAY = PLAY, SEQ REC = REC, OCTAVE-/+ = OCT-/+
-  names: firmware               # the hint lines name the SMK's buttons and knobs (PARA, PATCH, SCALE; K2, K3, K8)
+  names: firmware               # the hint lines name the SMK's buttons and knobs (PARA, PATCH, SCALE; K6, K8, K4)
   extra:
     KNOB BANK: held, the panel check (a bring-up screen; see open_questions)
     FADER BANK: fader bank A / B

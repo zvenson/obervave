@@ -71,14 +71,14 @@ static uint32_t smk_pads_held, smk_pad_t0, smk_step_vel;
 #define KEY_VEL(k) fm1_in.key_vel[SMK_KEY_F3 + (k)]   /* the keys play with velocity (the unit's factory curves) */
 #define STEP_NEW_VEL(st) do { if (smk_step_vel) (st)->vel = (uint8_t)smk_step_vel; } while (0)
 #define REC_TIE_VEL(t, s0) seq_step(t, s0)->vel   /* a recorded long note: its ties keep the played velocity */
-/* the button and knob names in the hints: the SMK's printed ones (PARA = EDIT, PATCH = HOME, SCALE = SEL; K2 SELECT,
- * K3 ALGORITHM, K8 = KNOB 4) */
+/* the button and knob names in the hints: the SMK's printed ones (PARA = EDIT, PATCH = HOME, SCALE = SEL; K6 SELECT,
+ * K8 ALGORITHM, K4 = KNOB 4) */
 #define NM_EDIT "PARA"
 #define NM_HOME "PATCH"
 #define NM_SELBTN "SCALE"
-#define NM_SELECT "K2"
-#define NM_ALGO "K3"
-#define NM_KNOB4 "K8"
+#define NM_SELECT "K6"
+#define NM_ALGO "K8"
+#define NM_KNOB4 "K4"
 #else
 #define SMK_PAD_HELD 0
 #define KEY_VEL(k) 100

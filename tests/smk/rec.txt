@@ -1,6 +1,6 @@
 # SMK-37: REC on, the pads play the pen chord live at their velocity (and start the take)
-# K4 (PRESETS): program 2, POLY BRASS (no arp: the arp records its own notes at 100)
-2800 enc 3 1
+# K7 (PRESETS): program 2, POLY BRASS (no arp: the arp records its own notes at 100)
+2800 enc 6 1
 3000 btn 17
 3200 pad 3 70
 3500 pad 3 0

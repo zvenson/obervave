@@ -6,11 +6,9 @@ differently. The SMK-37 build is the same synth, the same sounds and the same sc
 controls put to work: the 16 pads are the step sequencer, the faders reach the filter and the effects, the wheels
 bend and add vibrato, and the 37 keys play with velocity.
 
-> **Beta, not yet tested on a real SMK-37.** This build is made with the
-> [fm1-to-smk37](https://github.com/genkigenki/fm1-to-smk37) kit and its reference board layer, which runs on real
-> units in other ports, and it passes the host tests here; but OberVave itself has not run on an SMK-37 yet. Expect
-> things to need fixing (pad feel, fader and wheel ranges, LED colours). Install it only after a **full flash
-> backup** (below), and please report what works and what does not.
+> **Tested on a real SMK-37 Pro** (by genkigenki): it installs, plays and works well. This build is made with the
+> [fm1-to-smk37](https://github.com/genkigenki/fm1-to-smk37) kit and its reference board layer. Make a **full flash
+> backup** (below) before you install it, and please report what works and what does not.
 
 ## Packages and models
 
@@ -66,11 +64,11 @@ Everything from the FM-1 keeps its job, on the SMK button with the same meaning;
 | Keys F3 .. G5 (the middle 27) | the FM-1's 27 keys | notes; in the layers steps, erase, mute / solo / tap, patterns, as on the FM-1 |
 | Keys C3 .. E3, G#5 .. C6 | more keys | the notes below F3 and above G5 (OCTAVE moves them too); PARA held: erase that note |
 | Velocity | | every key and pad, from your unit's factory curves (the programs' VEL>AMP and VEL>FLT set how much it matters) |
-| **K1** | MASTER | the output level (an endless knob: 24 steps of 1024 a click) |
-| **K2** | SELECT | the tempo |
-| **K3** | ALGORITHM | track A / B |
-| **K4** | PRESETS | the program |
-| **K5 · K6 · K7 · K8** | KNOB 1 · 2 · 3 · 4 | the page's four knobs, left to right as on the screen |
+| **K1 · K2 · K3 · K4** | KNOB 1 · 2 · 3 · 4 | the page's four knobs, left to right as on the screen |
+| **K5** | MASTER | the output level (an endless knob: 24 steps of 1024 a click) |
+| **K6** | SELECT | the tempo |
+| **K7** | PRESETS | the program |
+| **K8** | ALGORITHM | track A / B |
 | **PATCH** | HOME | PERFORM; held with a layer: lock it |
 | **PARA** | EDIT | OSC / FILTER pages; held: the erase layer |
 | **CHORD** | ENV | the envelope pages |
@@ -97,10 +95,10 @@ The 16 pads are the 16 steps of the selected track's page, in reading order: the
 - **An empty pad** sets its step at once with the last note or chord you played (notes struck together are a
   chord), at the pad's velocity. Let go, it stays.
 - **A lit pad** pressed and let go clears its step.
-- **Hold a pad** and the screen shows its step: **K5-K8** set NOTE, LEVEL, RATCHET and GATE. Hold a pad and tap a
+- **Hold a pad** and the screen shows its step: **K1-K4** set NOTE, LEVEL, RATCHET and GATE. Hold a pad and tap a
   later one: one long note from the first to the second.
-- **< >** turn the page (as OCTAVE- / OCTAVE+ with SEQ held, or the black keys F#3 .. A#4); **K3** picks track A
-  or B. A track longer than 16 steps has a page per 16 (SEQ held + K8 sets the length).
+- **< >** turn the page (as OCTAVE- / OCTAVE+ with SEQ held, or the black keys F#3 .. A#4); **K8** picks track A
+  or B. A track longer than 16 steps has a page per 16 (SEQ held + K4 sets the length).
 - **While REC is on** (armed or recording) the pads play: each pad plays the last note or chord at its velocity,
   and it is recorded like the keys.
 
@@ -112,7 +110,7 @@ bright (red while recording); the held step red; beats 1, 5, 9, 13 glow faintly;
 | Bank | Fader 1 | Fader 2 | Fader 3 | Fader 4 |
 | --- | --- | --- | --- | --- |
 | **A** (PERFORM) | CUTOFF | RESO | ENV AMT | RELEASE |
-| **B** (effects) | CHORUS mix | DELAY mix | REVERB mix | MASTER (the level K1 turns) |
+| **B** (effects) | CHORUS mix | DELAY mix | REVERB mix | MASTER (the level K5 turns) |
 
 A fader takes over only once you move it, also after a bank change, so nothing jumps. A short bar under the page
 shows the value.
@@ -128,7 +126,7 @@ Let go and you are back. If something does not respond, a photo of this screen h
 - The SMK-37 has no key LEDs: the lit keys of the FM-1 (the notes that sound, the layers' tiles) are not there. The
   pads show the steps, the screen the rest.
 - No TRS MIDI IN (OberVave has none on the FM-1 either). USB-MIDI in and out, clock, start and stop work.
-- K1 is an endless knob, not a pot: the MASTER level starts at about 70 % of its travel at every power-on.
+- K5 is an endless knob, not a pot: the MASTER level starts at about 70 % of its travel at every power-on.
 
 ## Build
 

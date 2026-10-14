@@ -19,9 +19,9 @@
 5000 pad 0 100
 5100 pad 0 0
 5200 dump
-# a pad held: its step on the screen (after 250 ms), knob 1 (K5) moves the chord up
+# a pad held: its step on the screen (after 250 ms), knob 1 (K1) moves the chord up
 5500 pad 5 64
-5900 enc 4 1
+5900 enc 0 1
 6000 dump
 6000 shot
 6200 pad 5 0
@@ -32,9 +32,9 @@
 6800 pad 11 0
 6900 pad 8 0
 7000 dump
-# track A to 32 steps (SEQ held + K8), > to page 2, a step there, < back
+# track A to 32 steps (SEQ held + K4), > to page 2, a step there, < back
 7200 btndown 15
-7300 enc 7 16
+7300 enc 3 16
 7400 btnup 15
 7600 btn 3
 7700 pad 0 100
@@ -42,11 +42,11 @@
 7900 dump
 8100 btn 2
 8200 dump
-# K3 (ALGORITHM): track B (off), its pads are dark
-8400 enc 2 1
+# K8 (ALGORITHM): track B (off), its pads are dark
+8400 enc 7 1
 8500 dump
 # a pad held, > moves the page (track B is off: back to A first), the pad let go: no step stays held
-8700 enc 2 -1
+8700 enc 7 -1
 8800 btn 3
 8900 pad 3 100
 9000 btn 3

@@ -35,7 +35,7 @@
 static volatile uint32_t fm1_ms;
 #if BOARD_SMK37
 /* the SMK-37 (hal/smk_input.h's API, as obv_smk.h uses it): keys with velocity, pads as events, 4 faders, 2 wheels,
- * the outer keys, the pad LEDs; 8 encoders (K1 = MASTER) */
+ * the outer keys, the pad LEDs; 8 encoders (K1..K4 = KNOB 1..4, K5 = MASTER) */
 #define FM1_NKEY 37u
 #define SMK_KEY_F3 5u
 #define HOST_NENC 8
