@@ -71,11 +71,11 @@ static void smk_bar(char *s, uint32_t v, uint32_t max)   /* [#######---------] *
 }
 
 /* ---- the pads and the outer keys (main loop, after the keys) */
+static void smk_outer(uint32_t base, uint32_t notes_only, uint32_t *dirty);
 static void smk_pads(uint32_t base, uint32_t *dirty)
 {
     int32_t e;
     uint32_t v;
-    (void)base;
     while ((e = smk_pad_take()) >= 0) {
         uint32_t p = ((uint32_t)e >> 8) & 15u, vel = (uint32_t)e & 0xFFu, k = SMK_WK[p], q;
         if (vel) {
@@ -112,8 +112,23 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
         }
         *dirty = 1;
     }
-    while ((e = smk_extkey_take()) >= 0) {      /* the outer keys: more notes, the keys' path */
-        uint32_t kk = ((uint32_t)e >> 8) % FM1_NKEY, vel = (uint32_t)e & 0xFFu;
+    smk_outer(base, 0, dirty);
+    v = SMK_PAD_HELD;                           /* the step view comes and goes with a held pad */
+    if (v != smk_view_prev) { smk_view_prev = v; *dirty = 1; hints_key = 0xFFFFFFFFu; }
+}
+
+/* the outer keys: more notes, the keys' path. Also while the screen is drawn (app_idle, notes_only): there an
+ * erase (EDIT held) waits for the main loop, as the keys' other jobs do, and what follows it with it */
+static int32_t smk_ext_back = -1;
+static void smk_outer(uint32_t base, uint32_t notes_only, uint32_t *dirty)
+{
+    int32_t e;
+    for (;;) {
+        uint32_t kk, vel;
+        if (smk_ext_back >= 0) { e = smk_ext_back; smk_ext_back = -1; }
+        else if ((e = smk_extkey_take()) < 0) break;
+        kk = ((uint32_t)e >> 8) % FM1_NKEY; vel = (uint32_t)e & 0xFFu;
+        if (notes_only && (vel ? layer == L_EDIT : smk_ext_note[kk] && smk_ext_erase[kk])) { smk_ext_back = e; break; }
         if (vel) {
             uint32_t n = (uint32_t)clampi((int32_t)base + (int32_t)kk - (int32_t)SMK_KEY_F3, 1, 127);
             smk_ext_note[kk] = (uint8_t)n;
@@ -140,8 +155,6 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
         }
         if (notes_shown()) *dirty = 1;          /* (a note alone changes no knob page) */
     }
-    v = SMK_PAD_HELD;                           /* the step view comes and goes with a held pad */
-    if (v != smk_view_prev) { smk_view_prev = v; *dirty = 1; hints_key = 0xFFFFFFFFu; }
 }
 
 /* ---- FADER BANK, < > (main loop, with the other buttons) */

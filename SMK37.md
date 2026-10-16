@@ -59,7 +59,7 @@ Everything from the FM-1 keeps its job, on the SMK button with the same meaning;
 | --- | --- | --- |
 | Keys F3 .. G5 (the middle 27) | the FM-1's 27 keys | notes; in the layers steps, erase, mute / solo / tap, patterns, as on the FM-1 |
 | Keys C3 .. E3, G#5 .. C6 | more keys | the notes below F3 and above G5 (OCTAVE moves them too); PARA held: erase that note |
-| Velocity | | every key and pad, from your unit's factory curves (the programs' VEL>AMP and VEL>FLT set how much it matters) |
+| Velocity | | every key and pad, from your unit's factory curves (the programs' VEL>AMP and VEL>FLT set how much it matters). A key sounds when it is all the way down (its second contact): a hard strike at once, a soft one when it arrives, a very slow press after 40 ms at a soft velocity |
 | **K1** | MASTER | the output level (an endless knob: 24 steps of 1024 a click) |
 | **K2** | SELECT | the tempo |
 | **K3** | ALGORITHM | track A / B |

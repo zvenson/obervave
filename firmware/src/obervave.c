@@ -1430,6 +1430,9 @@ static void app_idle(void)                      /* lcd.c while a strip goes out,
     if (!idle_ok || busy) return;
     busy = 1;
     keys_in(1);
+#if BOARD_SMK37
+    smk_outer((uint32_t)(KEY0 + 12 * set.oct), 1, &dirty_steps);   /* (the outer keys' notes too) */
+#endif
     midi_in(1);
     busy = 0;
 }
