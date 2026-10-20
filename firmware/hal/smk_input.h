@@ -57,6 +57,9 @@
 #define SMK_DEB_RELEASE 4u        /* frames open in a row: a button release (~6 ms) */
 #define SMK_DEB_PRESS 2u          /* frames closed in a row: a button press (~3 ms) */
 #define SMK_KEY_REL 3u            /* frames with contact 1 open: a key release (~5 ms) */
+#ifndef SMK_KEY_TMAX_MS
+#define SMK_KEY_TMAX_MS 40u       /* contact 1 held this long without contact 2: the note plays (velocity ~30) */
+#endif
 #define SMK_ENC_DIV 4             /* decoder counts a step: a detent is a whole quadrature cycle (the stock's 2
                                    * gave two UI steps a click, as the FM-1 has one) */
 enum { FM1_BTN_OCT_DOWN = 4, FM1_BTN_OCT_UP = 5 };
@@ -343,6 +346,11 @@ static void smk__keys(uint32_t now)
             s = 3u;
         if (s == st) {
             fm1_in.ks_rel[k] = 0;
+            if (st == 1u && now - fm1_in.ks_t1[k] >= SMK_KEY_TMAX_MS * 1000u * FM1_TICKS_PER_US) {
+                uint32_t T = 10u + SMK_KEY_TMAX_MS * 10u;  /* a slow press: the note now, at that strike's velocity */
+                smk__key_event(k, smk_vel7(smk_curve(smk_trim_key[k], 0x3FFu - T)));
+                fm1_in.ks_stab[k] = 3;                    /* (contact 2, when it comes, plays nothing more) */
+            }
             continue;
         }
         if (s == 0u) {                                    /* contact 1 open: a release after a few frames */

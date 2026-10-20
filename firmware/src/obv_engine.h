@@ -203,7 +203,7 @@ static void voice_trigger(uint32_t part, uint32_t note, uint32_t vel)
             voice_t *v = &vc[lo + i];
             int32_t d = n > 1 ? (det * (int32_t)(2u * i) / (int32_t)(n - 1u)) - det : 0;
             int32_t pan = n > 1 ? ((int32_t)(128u * i) / (int32_t)(n - 1u) - 64) * spread >> 7 : 0;
-            if (legato) {                       /* a key still down: slide, no retrigger */
+            if (legato && v->part == part) {    /* a key still down: slide, no retrigger (a card of the other sound's: a new start) */
                 v->note = (uint8_t)note;
                 v->target16 = (int32_t)note << 16;
                 if (!pv[P_GLIDE]) v->pitch16 = v->target16;
@@ -234,14 +234,17 @@ static void voice_release(uint32_t part, uint32_t note, uint32_t from_arp)
         part_cards(part, &lo, &gn);
         if (vc[lo].gate && vc[lo].part == part && vc[lo].note == note) {
             for (i = 0; i < n; i++) {
+                if (vc[lo + i].part != part) continue;   /* (the other sound's card: its note stays its own) */
                 vc[lo + i].note = held[part][nheld[part] - 1u].note;
                 vc[lo + i].target16 = (int32_t)vc[lo + i].note << 16;
                 if (!pv[P_GLIDE]) vc[lo + i].pitch16 = vc[lo + i].target16;
             }
             pt[part].last_pitch16 = vc[lo].target16;
+            for (v = 0; v < NV; v++)            /* (a card outside the group: begun before a MODE / program change) */
+                if ((v < lo || v >= lo + n) && vc[v].gate && vc[v].note == note && vc[v].part == part) vc[v].gate = 0;
+            return;
         }
-        return;
-    }
+    }                                           /* (not the group's note: let it go wherever it sounds) */
     for (v = 0; v < NV; v++)
         if (vc[v].gate && vc[v].note == note && vc[v].part == part) vc[v].gate = 0;
 }
@@ -420,11 +423,16 @@ static void engine_events(void)
     if (sus_was & ~sus & 2u) ev_sustain_up(1);
     sus_was = sus;
     while (nq_r != nq_w) {
+        static uint8_t on_p[2][128];            /* the sound a note began on + 1: B's own sound may come or go meanwhile */
         nev_t e = nq[nq_r % NQ];
-        uint32_t p = e.part && b_own;           /* (B without its own sound: its keys play A) */
+        uint32_t p = e.part && b_own, q = e.part & 1u, n = e.note & 127u;   /* (B without its own sound: its keys play A) */
         nq_r++;
-        if (e.type) ev_note_on(p, e.note, e.vel);
-        else ev_note_off(p, e.note);
+        if (e.type) { on_p[q][n] = (uint8_t)(p + 1u); ev_note_on(p, e.note, e.vel); }
+        else {
+            if (on_p[q][n]) p = on_p[q][n] - 1u;
+            on_p[q][n] = 0;
+            ev_note_off(p, e.note);
+        }
     }
 }
 

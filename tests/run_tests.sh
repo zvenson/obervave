@@ -26,6 +26,14 @@ $CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test
 run "SMK-37 flash map: settings, patterns, owner tag in the store; never the head, BTIF/USRTRIM, USR, key_mac" "$OUT/smk_flash_test"
 $CC -o "$OUT/smk_wheel_test" tests/smk_wheel_test.c
 run "SMK-37 pitch wheel: the bend is back to 0 at rest, however slowly the wheel was moved" "$OUT/smk_wheel_test"
+$CC -w -Ifirmware/hal -o "$OUT/smk_key_test" tests/smk_key_test.c
+run "SMK-37 keys: velocity from the two contacts, a slow press plays after SMK_KEY_TMAX_MS, once" "$OUT/smk_key_test"
+for b in "" "-DBOARD_SMK37=1"; do
+    $CC -w -DOBV_HOST $b -DAPP_VER="\"dev\"" -Ifirmware/src -Ifirmware/gen -o "$OUT/arp_fuzz" tests/arp_fuzz.c
+    for m in 0 1 2; do   # 0: one sound, 1: track B's own sound comes and goes, 2: B has its own sound
+        run "no stuck notes${b:+ (SMK-37)}: keys, arp, pedal / HOLD, MODE, programs (B mode $m)" "$OUT/arp_fuzz" 400 $m
+    done
+done
 
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry (FM-1)" "$OUT/ota_test" build/obervave.fwsc
