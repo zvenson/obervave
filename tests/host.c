@@ -107,25 +107,24 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "gfx.c"
 
 #define SETTINGS_MAX (4096u - 12u)
+/* a fake flash sector: the first 4 bytes hold the stored byte count (0 = never written), the payload follows.
+ * The *length* check mirrors the device's sector_load (platform.c: it rejects h[1] != n), which is the store-
+ * format version guard -- a sector written at one size reads back only at that size. (The device also keeps a
+ * magic + CRC32; those guard corruption / foreign data and are exercised only on real hardware. Here the length
+ * is what distinguishes the old 80-byte / DOG5 96-byte program formats.) */
+static uint32_t host_slen(const uint8_t *s) { uint32_t v; memcpy(&v, s, 4); return v; }
+static void host_sput(uint8_t *s, const void *p, uint32_t n) { memcpy(s, &n, 4); memcpy(s + 4, p, n); }
 static uint8_t host_store[SETTINGS_MAX + 4];
 static int settings_load(void *p, uint32_t n)
 {
-    static int v2_done;
-    if (!v2_done && getenv("OBV_V2")) {         /* (test: a 1.4 store: program 4 the user's, "MMMMMMMMMM") */
-        v2_done = 1;
-        host_store[0] = 1;
-        host_store[4] = 2; host_store[5] = 3; host_store[6] = 100;   /* version 2, program 4, 100 BPM */
-        host_store[4 + 8] = 1u << 3;            /* used: bit 3 */
-        memset(host_store + 4 + 12 + 3 * 80, 'M', 80);
-    }
-    if (host_store[0] != 1 || n > SETTINGS_MAX) return -1;
+    if (host_slen(host_store) != n || n > SETTINGS_MAX) return -1;
     memcpy(p, host_store + 4, n);
     return 0;
 }
 static int settings_save(const void *p, uint32_t n)
 {
-    host_store[0] = 1;
-    memcpy(host_store + 4, p, n);
+    if (n > SETTINGS_MAX) return -1;
+    host_sput(host_store, p, n);
     printf("%6u ms  settings saved (%u B)\n", fm1_ms, n);
     return 0;
 }
@@ -133,15 +132,14 @@ static int settings_save(const void *p, uint32_t n)
 static uint8_t host_blob[NBLOB][SETTINGS_MAX + 4];
 static int blob_load(uint32_t i, void *p, uint32_t n)
 {
-    if (i >= NBLOB || host_blob[i][0] != 1 || n > SETTINGS_MAX) return -1;
+    if (i >= NBLOB || host_slen(host_blob[i]) != n || n > SETTINGS_MAX) return -1;
     memcpy(p, host_blob[i] + 4, n);
     return 0;
 }
 static int blob_save(uint32_t i, const void *p, uint32_t n)
 {
     if (i >= NBLOB || n > SETTINGS_MAX) return -1;
-    host_blob[i][0] = 1;
-    memcpy(host_blob[i] + 4, p, n);
+    host_sput(host_blob[i], p, n);
     printf("%6u ms  blob %u saved (%u B)\n", fm1_ms, i, n);
     return 0;
 }
@@ -149,18 +147,18 @@ static int blob_save(uint32_t i, const void *p, uint32_t n)
 static uint8_t host_psect[NPSECT][SETTINGS_MAX + 4];
 static int psect_load(uint32_t i, void *p, uint32_t n)
 {
-    if (i >= NPSECT || host_psect[i][0] != 1 || n > SETTINGS_MAX) return -1;
+    if (i >= NPSECT || host_slen(host_psect[i]) != n || n > SETTINGS_MAX) return -1;
     memcpy(p, host_psect[i] + 4, n);
     return 0;
 }
 static int psect_save(uint32_t i, const void *p, uint32_t n)
 {
     if (i >= NPSECT || n > SETTINGS_MAX) return -1;
-    host_psect[i][0] = 1;
-    memcpy(host_psect[i] + 4, p, n);
+    host_sput(host_psect[i], p, n);
     printf("%6u ms  programs %u saved (%u B)\n", fm1_ms, i, n);
     return 0;
 }
+static int host_selftest;                       /* "selftest" argv: run store_selftest() (obervave.c) instead of the app */
 
 static uint8_t mq[64][3];
 static uint32_t mq_w, mq_r;
@@ -423,11 +421,15 @@ static void platform_poll(void)                 /* one call = one millisecond */
 
 int main(int argc, char **argv)
 {
-    if (argc > 1) host_out = argv[1];
-    if (argc > 2) read_script(argv[2]);
-    if (argc > 3) frame_fps = (uint32_t)atoi(argv[3]);
-    perf_open();
-    app_main();
+    int i;
+    for (i = 1; i < argc; i++) if (!strcmp(argv[i], "selftest")) host_selftest = 1;
+    if (!host_selftest) {
+        if (argc > 1) host_out = argv[1];
+        if (argc > 2) read_script(argv[2]);
+        if (argc > 3) frame_fps = (uint32_t)atoi(argv[3]);
+        perf_open();
+    }
+    app_main();                                 /* store_selftest() runs and exits if host_selftest (obervave.c) */
     return 0;
 }
 #endif

@@ -21,6 +21,11 @@ run() { echo "== $1"; shift; "$@" || fail=1; }
 run "FM-1 app on the host: the default script plays, screens and sound" sh tests/run_host.sh
 run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_host.sh
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
+# the 96-byte / 3-sector / DOG5 program store (the FM-1 and SMK-37 host binaries from run_host.sh above):
+# 99 distinct patches round-trip byte-exact across a power cycle, one save touches only its sector, an old
+# 80-byte "BOVP" sector is rejected. Runnable on its own too: build/host/obervave selftest
+run "FM-1 program store: 99 patches round-trip, save isolation, old format rejected" "$OUT/obervave" selftest
+run "SMK-37 program store: same checks" "$OUT/obervave-smk37" selftest
 
 $CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test.c
 run "SMK-37 flash map: settings, patterns, owner tag in the store; never the head, BTIF/USRTRIM, USR, key_mac" "$OUT/smk_flash_test"

@@ -442,10 +442,104 @@ static void app_idle(void)                      /* lcd.c while a strip goes out,
     busy = 0;
 }
 
+#ifdef OBV_HOST
+/* a host self-test of the 96-byte / 3-sector / DOG5 program store, exercising the REAL app code (prog_put,
+ * prog_get, psect_save, psect_load, the boot reload) over tests/host.c's flash model. Run: `obervave selftest`.
+ * (The device's own sector_load/save -- magic + length + CRC32 at real flash addresses -- run only on the
+ * toolchain/device; here the host model's length guard stands in for the format/version check.) */
+static int sf_fail;
+static void sf_check(const char *what, int ok) { printf("selftest: %-64s %s\n", what, ok ? "ok" : "FAIL"); sf_fail += !ok; }
+static void sf_seed(patch_t *p, uint32_t seed)   /* a distinct, fully-filled 96-byte patch (all bytes vary by seed) */
+{
+    uint32_t i, s = seed * 2654435761u + 1u;
+    for (i = 0; i < PATCH_BYTES; i++) { s = s * 1103515245u + 12345u; p->v[i] = (uint8_t)(s >> 24); }
+}
+static patch_t sf_expect[NPROG];
+static uint8_t sf_snap_ps[NPSECT][sizeof host_psect[0]], sf_snap_set[sizeof host_store], sf_snap_bl[NBLOB][sizeof host_blob[0]];
+static void store_selftest(void)
+{
+    uint32_t n, s;
+    patch_t got;
+    printf("selftest: PATCH_BYTES=%u NPARAM=%u name@%u  PS_N=%u NPSECT=%u sizeof(psect_t)=%zu PS_TAG=%08X\n",
+           PATCH_BYTES, NPARAM, PATCH_NAME_AT, PS_N, NPSECT, sizeof(psect_t), PS_TAG);
+
+    /* fresh flash + fresh RAM caches */
+    memset(host_psect, 0, sizeof host_psect);
+    for (n = 0; n < NPSECT; n++) { memset(&psect[n], 0, sizeof psect[n]); psect[n].tag = PS_TAG; }
+    ps_dirty = 0;
+
+    /* ---- c: with no user saves, programs 1-32 are the DØG-5 factory, 33-99 all read INIT ---- */
+    {
+        int c_ok = 1;
+        for (n = 32; n < NPROG; n++) {           /* 0-idx 32-98 == programs 33-99 */
+            prog_get(n, &got);
+            if (memcmp(got.v + PATCH_NAME_AT, "INIT", 4) != 0 || got.v[PATCH_NAME_AT + 4] != ' ') c_ok = 0;
+        }
+        sf_check("with no user saves, programs 33-99 all read INIT", c_ok);
+    }
+
+    /* ---- a1: 99 distinct patches into all 99 slots, power-cycle, reload, compare every byte ---- */
+    for (n = 0; n < NPROG; n++) { sf_seed(&sf_expect[n], n + 1u); live = sf_expect[n]; prog_put(n, &live); }
+    for (s = 0; s < NPSECT; s++) if (ps_dirty >> s & 1u) psect_save(s, &psect[s], sizeof psect[s]);
+    ps_dirty = 0;
+    sf_check("all 3 program sectors were written (99 slots span 3 sectors)",
+             host_slen(host_psect[0]) == sizeof(psect_t) && host_slen(host_psect[1]) == sizeof(psect_t) &&
+             host_slen(host_psect[2]) == sizeof(psect_t));
+    memset(psect, 0, sizeof psect);                  /* power cycle: the RAM caches are lost, the flash survives */
+    for (n = 0; n < NPSECT; n++)
+        if (psect_load(n, &psect[n], sizeof psect[n]) || psect[n].tag != PS_TAG) { memset(&psect[n], 0, sizeof psect[n]); psect[n].tag = PS_TAG; }
+    {
+        int all = 1, s3 = 1;
+        for (n = 0; n < NPROG; n++) { prog_get(n, &got); if (memcmp(&got, &sf_expect[n], PATCH_BYTES)) { all = 0; printf("  slot %u differs\n", n + 1u); } }
+        for (n = 84; n < NPROG; n++) if (n / PS_N != 2u) s3 = 0;   /* programs 85-99 (0-idx 84-98) */
+        sf_check("all 99 patches survive the power-cycle byte-exact (every byte of every patch)", all);
+        sf_check("programs 85-99 live in the 3rd sector (index 2)", s3);
+    }
+
+    /* ---- a2: saving one slot touches only its sector; the other two + all other flash unchanged ---- */
+    memcpy(sf_snap_ps, host_psect, sizeof host_psect);
+    memcpy(sf_snap_set, host_store, sizeof host_store);
+    memcpy(sf_snap_bl, host_blob, sizeof host_blob);
+    sf_seed(&live, 7777u); prog_put(50u, &live);     /* program 51 (0-idx 50) -> sector 50/42 = 1 */
+    for (s = 0; s < NPSECT; s++) if (ps_dirty >> s & 1u) psect_save(s, &psect[s], sizeof psect[s]);
+    ps_dirty = 0;
+    sf_check("saving program 51 rewrote only its sector (1); sectors 0 and 2 unchanged",
+             memcmp(host_psect[1], sf_snap_ps[1], sizeof host_psect[1]) != 0 &&
+             memcmp(host_psect[0], sf_snap_ps[0], sizeof host_psect[0]) == 0 &&
+             memcmp(host_psect[2], sf_snap_ps[2], sizeof host_psect[2]) == 0);
+    sf_check("that save left the settings sector and all 8 pattern sectors untouched",
+             memcmp(host_store, sf_snap_set, sizeof host_store) == 0 && memcmp(host_blob, sf_snap_bl, sizeof host_blob) == 0);
+
+    /* ---- b: an old 80-byte-format sector (tag "BOVP", 4056 bytes) reads as empty, is never misread ---- */
+    {
+        static uint8_t old[4056];                    /* the old psect_t size: 4 tag + 50 used + 2 pad + 50*80 */
+        uint32_t oldtag = 0x50564F42u;               /* psect_t.tag == "BOVP" at offset 0 */
+        int rej, empty = 1;
+        memset(old, 0xAB, sizeof old);
+        memcpy(old, &oldtag, 4);
+        host_sput(host_psect[0], old, sizeof old);   /* sector 0 now holds the old format (stored length 4056) */
+        memset(host_psect[1], 0, 4); memset(host_psect[2], 0, 4);   /* sectors 1,2 empty */
+        rej = (psect_load(0, &psect[0], sizeof psect[0]) != 0);     /* must reject: stored 4056 != requested 4080 */
+        for (n = 0; n < NPSECT; n++)
+            if (psect_load(n, &psect[n], sizeof psect[n]) || psect[n].tag != PS_TAG) { memset(&psect[n], 0, sizeof psect[n]); psect[n].tag = PS_TAG; }
+        for (n = 0; n < NPROG; n++) if (psect[n / PS_N].used[n % PS_N]) empty = 0;
+        sf_check("the old 80-byte \"BOVP\" sector (4056 B) is rejected by the length guard", rej);
+        sf_check("after rejection every slot reads empty (factory/INIT); the DOG5 tag is set, no BOVP/junk leaked",
+                 empty && psect[0].tag == PS_TAG);
+    }
+
+    printf("selftest: %s\n", sf_fail ? "FAILED" : "all ok");
+    exit(sf_fail ? 1 : 0);
+}
+#endif
+
 static void app_main(void)
 {
     uint32_t k, i, t_led = 0, t_scope = 0, t_page = 0, t_hdr = 0, leds_q = 1;
     uint32_t leds_prev = 0xFFFFFFFFu, glow = 0, glow_prev = 0xFFFFFFFFu;
+#ifdef OBV_HOST
+    if (host_selftest) store_selftest();             /* runs the store self-test and exit()s */
+#endif
     rnd = 0xC0FFEE42u;
     engine_init();
     cc_map_init();
