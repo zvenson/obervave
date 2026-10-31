@@ -62,7 +62,7 @@ while a layer is held locks it open; its button lets it go.
 
 | Hold | Keys | KNOB 1 · 2 · 3 · 4 | Tap |
 | --- | --- | --- | --- |
-| **GLO** | white 1-4 (F3 .. B3): start / stop track A-D on the bar (REC lit: record it); 5-8: mute A-D; 9-12: solo A-D; G5: tap tempo | - | GLOBAL (TEMPO, CLICK, MIDI CH, TUNE; the CPU time and the sync in its title) / VOICE / OUTPUT |
+| **GLO** | white 1-4 (F3 .. B3): start / stop track A-D on the bar (REC lit: record it); 5-8: mute A-D; 9-12: solo A-D; G5: tap tempo | - | GLOBAL (TEMPO, CLICK, MIDI CH, TUNE; the CPU time and the sync in its title) / OUTPUT (VOICE is under EDIT since 3.3, after OSC 2) |
 | **SEQ** | steps 1-16 of the page (tap: set with the last note or chord / clear; hold + a later step: one long note); black keys F#3 .. A#4: page 1-8 | NOTE · DIV · SWING · LENGTH; a step held: NOTE · LEVEL · RATCHET · GATE | the sequencer (full screen); again: its next view |
 | **EDIT** | erase that note (playing: as the playhead passes) | SHIFT · LENGTH x2 / 1/2 · TRANSPOSE | OSC / FILTER pages; in STEPS: clear the step |
 | **SAVE** | white 1-8: go to pattern 1-8; black 1-8 (F#3 .. A#4): copy this pattern there (with SELECT pressed: a random sound) | - | twice: save the track's program (PRESETS in between: into another slot); in the sequencer: SAVE PATTERN?, again: saved |

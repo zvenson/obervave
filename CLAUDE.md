@@ -251,7 +251,7 @@ Priorities from the user: **the audio engine first, the look second**. Max depth
 ### Controls
 
 - PRESETS = program, ALGORITHM = CUTOFF (always), SELECT = page scroll, KNOB 1-4 = the page's four parameters.
-- HOME = PERFORM (RESO, F.ENV AMT, A.RELEASE, MOD DEPTH). EDIT cycles OSC1 / OSC2 / OSC MOD / FILTER / FILTER +,
+- HOME = PERFORM (RESO, F.ENV AMT, A.RELEASE, MOD DEPTH). EDIT cycles OSC1 / OSC2 / VOICE (since 3.3, as native 3.2) / OSC MOD / FILTER / FILTER +,
   ENV cycles FILTER ENV / AMP ENV, LFO cycles LFO / LFO DEST / LFO +, FX cycles CHORUS / DELAY / REVERB,
   ARP = arp on/off + its page, GLO cycles GLOBAL (TEMPO, MIDI CH, TUNE, CPU meter) / VOICE (mode, unison, glide) /
   OUTPUT (vintage, spread, bend, volume).

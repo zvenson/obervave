@@ -2090,9 +2090,9 @@ static void app_main(void)
                             say(HINT[seq_view]);
                             entry_reset();
                         } else if (LL[k] == L_EDIT && is_seq_page(page) && SV_ENTRY(seq_view)) seq_clear_cursor();
-                        else if (LL[k] == L_EDIT) np = cycle_page(PG_OSC1, 5);
+                        else if (LL[k] == L_EDIT) np = cycle_page(PG_OSC1, 6);
                         else if (LL[k] == L_FX) np = cycle_page(PG_CHORUS, 4);
-                        else if (LL[k] == L_GLO) np = page == PG_GLOBAL ? PG_VOICE : page == PG_VOICE ? PG_OUTPUT : PG_GLOBAL;
+                        else if (LL[k] == L_GLO) np = page == PG_GLOBAL ? PG_OUTPUT : PG_GLOBAL;
                         else if (is_seq_page(page)) {   /* in the sequencer: SAVE PATTERN? - SAVE again saves (as zp12:
                                                  * now; playing, at the stop), anything else: no */
                             if (pat_save_armed && fm1_ms - pat_save_t < 3000u) { pat_save_armed = 0; pat_save_to(set.pat); }
@@ -2381,7 +2381,7 @@ static void app_main(void)
         fm1_led_key(BTN_ENV, page == PG_FENV || page == PG_AENV);
         fm1_led_key(BTN_LFO, page >= PG_LFO && page <= PG_LFO2);
         fm1_led_key(BTN_FX, page >= PG_CHORUS && page <= PG_DRIVE);
-        fm1_led_key(BTN_GLO, page >= PG_VOICE && page <= PG_GLOBAL);
+        fm1_led_key(BTN_GLO, page >= PG_OUTPUT && page <= PG_GLOBAL);
         fm1_led_key(BTN_SAVE, save_armed);
 #if BOARD_SMK37
         smk_leds();                             /* the step pads, FADER BANK, < > */
