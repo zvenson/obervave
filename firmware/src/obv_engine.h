@@ -22,8 +22,10 @@ typedef struct {
     osc_t o1, o2;
     uint32_t noise;
     env_t fe, ae;
-    svf_state_t f1, f2;
-    svf_coef_t c1, c2;
+    svf_state_t f1;
+    svf_coef_t c1;
+    lad_state_t lad;                            /* the 24 dB ladder */
+    lad_coef_t lc;
     uint32_t inc1, inc2, pw1, pw2;              /* this block's oscillator settings */
     int32_t amp0, amp1;                         /* Q15 at the block's start and end */
     int32_t pitch16, target16;                  /* Q16 semitones: the glide */
@@ -104,7 +106,7 @@ typedef struct {
     int32_t lfo_val;                            /* this block, Q15 */
     int32_t last_pitch16;                       /* where a glide starts from */
     int32_t fenv_amt, keytrk, velflt, lfo_pd, lfo_fd, lfo_pwd, lfo_ad, wheel_q, bend8, env_o2, det_fine8;
-    int32_t lvl1, lvl2, lvln, drive_q12, reso_k, vint, sus_f, sus_a, gain_q12, morph_q;
+    int32_t lvl1, lvl2, lvln, drive_q12, reso_k, lad_k, vint, sus_f, sus_a, gain_q12, morph_q;
     int32_t cut_sm, reso_sm;                    /* CUTOFF and RESO slewed (Q8), ~25 ms: a CC sweep in semitone steps glides */
     uint32_t pw1_base, pw2_base, w1, w2, ftype, sync_on, xmod_q, glide_k;
 } part_t;
@@ -593,10 +595,11 @@ static void block_globals(part_t *g)            /* a sound's derived numbers, on
     d = pv[P_O1_LVL]; g->lvl1 = (d * d) >> 7;
     d = pv[P_O2_LVL]; g->lvl2 = (d * d) >> 7;
     d = pv[P_NOISE]; g->lvln = (d * d) >> 7;
-    d = pv[P_DRIVE]; g->drive_q12 = d ? 4096 + (d * d * 7 * 4096 / 16129) : 0;
+    d = pv[P_DRIVE]; g->drive_q12 = 4096 + (d * d * 15 * 4096 / 16129);   /* 1 .. 16 into the filter's input stage */
     g->cut_sm += ((pv[P_CUTOFF] << 8) - g->cut_sm) >> 6;   /* tau = 64 blocks = 23 ms */
     g->reso_sm += ((pv[P_RESO] << 8) - g->reso_sm) >> 6;
     g->reso_k = 8192 - g->reso_sm * 8400 / (127 * 256);
+    g->lad_k = (8192 - g->reso_k) >> 1;         /* the ladder's feedback, Q10: 0 .. 4.1 */
     g->vint = pv[P_VINTAGE];
     g->sus_f = pv[P_FS] * (ENV_ONE / 127);
     g->sus_a = pv[P_AS] * (ENV_ONE / 127);
@@ -671,9 +674,10 @@ static void voice_block(voice_t *v, uint32_t card)
     /* cutoff, Q8 semitones */
     cut = g->cut_sm + 8 * 256 + ((fenv * g->fenv_amt * 390) >> 15)
         + ((int32_t)v->note - 60) * g->keytrk * 2 + (((int32_t)v->vel - 64) * g->velflt >> 1)
-        + ((lfo * g->lfo_fd * 97) >> 15) + ((lfo * g->wheel_q * 48) >> 15) + ((VINT_CUT8[card % NCARD] * vint) >> 7);
-    svf_coef(&v->c1, cut, g->reso_k);
-    if (g->ftype == F_LP24) svf_coef(&v->c2, cut, 5793);
+        + ((lfo * g->lfo_fd * 97) >> 15) + ((lfo * g->wheel_q * 48) >> 15) + ((VINT_CUT8[card % NCARD] * vint) >> 7)
+        + ((v->drift * vint) >> 7);             /* the vintage walk on the cutoff too: ~1/4 semitone at the default */
+    if (g->ftype == F_LP24) lad_coef(&v->lc, cut, g->lad_k);
+    else svf_coef(&v->c1, cut, g->reso_k);
     /* amp */
     velg = 32767 - ((((127 - (int32_t)v->vel) * (int32_t)pv[P_VEL_AMP]) >> 7) * 258);
     trem = 32767 - (((32767 - lfo) * g->lfo_ad) >> 8);
@@ -684,7 +688,7 @@ static void voice_block(voice_t *v, uint32_t card)
     ui_vnote[card] = v->note;
 }
 
-/* ---- the samples of one voice: oscillators -> mix -> drive -> filter -> amp -> pan */
+/* ---- the samples of one voice: oscillators -> mix -> input stage (drive) -> filter -> amp -> pan */
 static void voice_render(voice_t *v, int32_t *out)
 {
     uint32_t i, inc1 = v->inc1, inc2 = v->inc2, pw1 = v->pw1, pw2 = v->pw2, d1 = inc1 >> 15, d2 = inc2 >> 15;
@@ -711,18 +715,20 @@ static void voice_render(voice_t *v, int32_t *out)
         mix = s1 * l1 + s2 * l2;
         if (ln) mix += ((int32_t)(xorshift(&v->noise) >> 16) - 32768) * ln;
         mix >>= 7;
-        if (drv) mix = softclip(((mix >> 3) * drv) >> 9);
-        else mix = clampi(mix, -65535, 65535);
-        svf_step(&v->c1, &v->f1, mix, &lp, &bp, &hp);
-        switch (ft) {
-        case F_LP12: y = lp; break;
-        case F_HP12: y = hp; break;
-        case F_BP12: y = bp; break;
-        case F_NOTCH: y = hp + lp; break;
-        case F_SEM: y = lp + (((hp - lp) * morph_q) >> 7); break;   /* the SEM's LP .. notch .. HP pot */
-        default: y = svf_lp(&v->c2, &v->f2, lp); break;
+        mix = sat_in(((mix >> 3) * drv) >> 9);  /* the input stage: DRIVE's gain, then a tanh (never a hard clip) */
+        if (ft == F_LP24)
+            y = lad_step(&v->lc, &v->lad, mix);
+        else {
+            svf_step(&v->c1, &v->f1, mix, &lp, &bp, &hp);
+            switch (ft) {
+            case F_HP12: y = hp; break;
+            case F_BP12: y = bp; break;
+            case F_NOTCH: y = hp + lp; break;
+            case F_SEM: y = lp + (((hp - lp) * morph_q) >> 7); break;   /* the SEM's LP .. notch .. HP pot */
+            default: y = lp; break;
+            }
         }
-        y = clampi(y, -65000, 65000);
+        y = sat_knee(y);
         amp = amp0 + ((da * (int32_t)i) >> 4);
         y = (y * amp) >> 16;
         out[2u * i] += (y * gl) >> 12;

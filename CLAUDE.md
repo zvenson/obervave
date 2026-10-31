@@ -127,6 +127,16 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**Fatter (2026-10-31, "Oberheim wäre massiver", uncommitted to the hub until the user hears it on the FM-1):** LP24 is a
+real four-pole ladder (`lad_coef` / `lad_step` in obv_dsp.h: four TPT one-poles, the resonance fed back around all four,
+zero-delay linear solve, a tanh on the loop's input, input gain 1 + k/2 so the bass stays; was two cascaded SVFs with the
+resonance on the first). The mixer's hard clamp and the post-filter clamp are gone: `sat_in` (tanh, unity below ~30000,
+DRIVE's gain 1..16 in front of it, always on) and `sat_knee` (linear to 32768, tanh to 65535). The vintage walk moves the
+cutoff too (~1/4 semitone at the default). Levels within ~1 dB of before (tests/fat.txt + the ana script in the
+session: brass -6 dBFS peak), a full-resonance cutoff sweep stays bounded (tests/fat_sweep.txt). Host cost +7 %
+(1653 instr/sample on fat.txt, was 1544). `TANH_Q15` is tanh(x/32768), unity slope (its old comment said x2).
+Not done yet: oversampling, the SVF's integrator saturation, retuning the brass patches.
+
 **3.0.1** (2026-10-23, tag v3.0.1: identity FM-1_95XY from now on, FM-1_9530, its own; 3.0 (tag v3.0) reported FM-1_950, shared with CS-1, OPN-1, FMEL-1, so the hub could not tell them apart; the CI's attested package in docs/firmware; the SMK-37's 3.0.1 packages (SMK-37 Pro / Elite / MKE-P37_9530, the CI's) in docs/firmware/smk37 too, tag smk37-v3.0.1-beta, the user's go 2026-10-23): the VIBE edition
 (~/VibeFMmk1/vibe-sdk/firmware/obervave, OberVave 3.0 native; the FM-1-code 2.0 edition is in that repo's tag
 vor-aufraeumen-2026-10-22) back on the FM-1 and the SMK-37: 4 tracks A-D on the 8 voices (MONO/UNISON groups pick their
