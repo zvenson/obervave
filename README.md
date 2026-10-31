@@ -13,15 +13,20 @@ its sounds and its mix. 99 programs (70 factory sounds).
 
 <p align="center"><img src="docs/screen.png" width="240" alt="OberVave's screen: program 01 DARK ARP, the ARP page with four knobs, the scope, eight voice LEDs"></p>
 
-> **Released: 3.0.1** (`docs/firmware/obervave-3.0.1.fwsc`, identity `FM-1_9530`, its own: 3.0 reported the shared `FM-1_950`; on the Firmware Hub, built and signed
-> by this repository's workflow). 3.0 brings OberVave's VIBE edition back to the FM-1 and the SMK-37:
-> four tracks on the eight voices, the mixer, DRIVE and MASTER, track launch on the bar, patterns with their own
-> sounds and mix, recording with a quantise per track (or none: as played), legato, arp takes, recorded knob moves,
-> and SYNC AUTO / INTERNAL for a MIDI clock. 1.5's programs, settings and patterns come over on the first start (the
-> old patterns stay in the flash, so going back to 1.5 keeps them). Build it yourself: `./build.sh`, then
+> **Released: 3.3** (`docs/firmware/obervave-3.3.fwsc`, identity `FM-1_9533`; on the Firmware Hub, built and signed by this
+> repository's workflow). 3.3 is fatter: **LP 24 is a real four-pole ladder** now, four stages with the resonance fed back
+> around all four as in the filter chip of the later eight-voice synths, a tanh in the loop, so the resonance compresses
+> the sound instead of thinning it and the bass stays. **No hard clipping anywhere in a voice**: the oscillator mix and the
+> filter's output go through soft stages instead of clamps; DRIVE sits in front of that input stage, from warm to fuzz
+> (it was a fuzz at half level from the first notch). VINTAGE moves the cutoff too, slowly, each voice on its own. The
+> levels stay within a dB of 3.0. VOICE (mode, unison, detune, glide) is under EDIT after OSC 2 now; GLO is GLOBAL /
+> OUTPUT. The same engine is in the native VIBE firmware 3.3. Build it yourself: `./build.sh`, then
 > `tools/fm1_install.py build/obervave.fwsc`.
 >
-> Before 3.0: 1.5.3 showed the update loader's progress in the Firmware Hub's look (the idea from Skiff); 1.5.2
+> Before 3.3: 3.0 brought OberVave's VIBE edition back to the FM-1 and the SMK-37 (four tracks on the eight voices, the
+> mixer, DRIVE and MASTER, track launch on the bar, patterns with their own sounds and mix, recording with a quantise per
+> track, legato, arp takes, recorded knob moves, SYNC AUTO / INTERNAL; 3.0.1 gave it its own identity `FM-1_9530`); 1.5.3
+> showed the update loader's progress in the Firmware Hub's look (the idea from Skiff); 1.5.2
 > opened the FM-1's **TRS MIDI IN** jack (through a TRS-to-DIN adapter, type A or B); 1.5 brought 99 program slots
 > and "save as"; 1.4 a second sound on track B; 1.3 the full-screen sequencer as SLOOP's step page. Do not install
 > 1.1: its USB-MIDI out is broken (1.2 fixed it).

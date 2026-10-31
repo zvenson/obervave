@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
-/* OberVave 3.0: an analog-style polysynth for the M-VAVE FM-1 (and the SMK-37) in the spirit of the classic American
+/* OberVave 3.3: an analog-style polysynth for the M-VAVE FM-1 (and the SMK-37) in the spirit of the classic American
  * poly synths of 1979-84. Four tracks, each with its own sound, arpeggiator and sequence, sharing the eight voices; a
  * mixer (level, pan, four effect sends, mute, solo) with a MASTER (DJ filter, drive, compressor); the tracks start and
  * stop on the bar, as clips in Ableton Live; every pattern keeps its sounds and its mix. Grown from the VIBE edition

@@ -127,7 +127,7 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
-**Fatter (2026-10-31, "Oberheim wäre massiver", uncommitted to the hub until the user hears it on the FM-1):** LP24 is a
+**3.3 (2026-10-31, tag v3.3, FM-1_9533, "Oberheim wäre massiver"; heard by the user on the FM-1 and released the same day; the native VIBE 3.3 carries the same engine, vibe-sdk 03010dc):** LP24 is a
 real four-pole ladder (`lad_coef` / `lad_step` in obv_dsp.h: four TPT one-poles, the resonance fed back around all four,
 zero-delay linear solve, a tanh on the loop's input, input gain 1 + k/2 so the bass stays; was two cascaded SVFs with the
 resonance on the first). The mixer's hard clamp and the post-filter clamp are gone: `sat_in` (tanh, unity below ~30000,
