@@ -362,9 +362,11 @@ static uint8_t held_key[27];
 #include "obv_smk.h"                            /* the SMK-37's outer keys, faders, wheels, < >, FADER BANK */
 #endif
 
-static uint32_t cycle_page(uint32_t first, uint32_t count)   /* a button steps through its pages */
+static uint32_t in_fam(uint32_t f) { return page >= FAM[f].first && page < (uint32_t)FAM[f].first + FAM[f].count; }
+static uint32_t cycle_fam(uint32_t f)           /* a button steps through its pages (FAM in obv_params.h) */
 {
-    if (page >= first && page < first + count) return first + (page - first + 1u) % count;
+    uint32_t first = FAM[f].first, count = FAM[f].count;
+    if (in_fam(f)) return first + (page - first + 1u) % count;
     return first;
 }
 
@@ -593,7 +595,7 @@ static void app_main(void)
             if (rel & (1u << BTN_FX)) {
                 if (dead) dead = 0;
                 else if (layer == L_FX && !layer_lock) {
-                    if (!layer_used && fm1_ms - layer_t < 600u) np = cycle_page(PG_CHORUS, 3);
+                    if (!layer_used && fm1_ms - layer_t < 600u) np = cycle_fam(FAM_FX);
                     layer = L_NONE;
                     dirty_page = dirty_tags = 1; hints_key = 0xFFFFFFFFu; leds_q = 0xFFFFFFFFu;
                 }
@@ -620,14 +622,14 @@ static void app_main(void)
             layer = L_NONE; layer_lock = 0; b &= ~((1u << BTN_ENV) | (1u << BTN_LFO) | (1u << BTN_ARP));
             dirty_page = dirty_tags = 1; leds_q = 0xFFFFFFFFu;
         }
-        if (b & (1u << BTN_EDIT)) np = cycle_page(PG_OSC1, 5);
-        if (b & (1u << BTN_ENV)) np = cycle_page(PG_FENV, 2);
-        if (b & (1u << BTN_LFO)) np = cycle_page(PG_LFO, 3);
+        if (b & (1u << BTN_EDIT)) np = cycle_fam(FAM_EDIT);
+        if (b & (1u << BTN_ENV)) np = cycle_fam(FAM_ENV);
+        if (b & (1u << BTN_LFO)) np = cycle_fam(FAM_LFO);
         if (b & (1u << BTN_ARP)) {
             if (page == PG_ARP) { hold ^= 1u; ctl_hold = hold; dirty_tags = 1; }   /* on its page: HOLD */
             else np = PG_ARP;
         }
-        if (b & (1u << BTN_GLO)) np = page == PG_GLOBAL ? PG_VOICE : page == PG_VOICE ? PG_OUTPUT : PG_GLOBAL;
+        if (b & (1u << BTN_GLO)) np = cycle_fam(FAM_GLO);
         if (b & (1u << BTN_SAVE)) {              /* a tap: armed (the slot to save into); tapped again: saved */
             if (save_armed) {
                 uint32_t n = save_to % NPROG;
@@ -717,11 +719,11 @@ static void app_main(void)
             fm1_led_key(BTN_OCT_UP, lit >> 30 & 1u);
         }
         fm1_led_key(BTN_HOME, page == PG_PERFORM);
-        fm1_led_key(BTN_EDIT, page >= PG_OSC1 && page <= PG_FILTER2);
-        fm1_led_key(BTN_ENV, page == PG_FENV || page == PG_AENV);
-        fm1_led_key(BTN_LFO, page >= PG_LFO && page <= PG_LFO2);
-        fm1_led_key(BTN_FX, page >= PG_CHORUS && page <= PG_REVERB);
-        fm1_led_key(BTN_GLO, page >= PG_VOICE && page <= PG_GLOBAL);
+        fm1_led_key(BTN_EDIT, in_fam(FAM_EDIT));
+        fm1_led_key(BTN_ENV, in_fam(FAM_ENV));
+        fm1_led_key(BTN_LFO, in_fam(FAM_LFO));
+        fm1_led_key(BTN_FX, in_fam(FAM_FX));
+        fm1_led_key(BTN_GLO, in_fam(FAM_GLO));
         fm1_led_key(BTN_SAVE, save_armed);
 #if BOARD_SMK37
         smk_leds();                             /* FADER BANK, < > */

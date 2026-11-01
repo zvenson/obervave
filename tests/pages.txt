@@ -1,0 +1,43 @@
+# every one of DOG-5's 20 pages, reached with its button (HOME, EDIT x5, ENV x2, LFO x3, FX x4, ARP, GLO x4);
+# a screen after each. tests/run_host.sh tests/pages.txt -> build/host/obervave-<ms>.png
+3000 btn 8
+3300 shot
+3500 btn 6
+3800 shot
+4000 btn 6
+4300 shot
+4500 btn 6
+4800 shot
+5000 btn 6
+5300 shot
+5500 btn 6
+5800 shot
+6000 btn 4
+6300 shot
+6500 btn 4
+6800 shot
+7000 btn 5
+7300 shot
+7500 btn 5
+7800 shot
+8000 btn 5
+8300 shot
+8500 btn 2
+8800 shot
+9000 btn 2
+9300 shot
+9500 btn 2
+9800 shot
+10000 btn 2
+10300 shot
+10500 btn 10
+10800 shot
+11000 btn 7
+11300 shot
+11500 btn 7
+11800 shot
+12000 btn 7
+12300 shot
+12500 btn 7
+12800 shot
+13500 end

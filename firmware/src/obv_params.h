@@ -130,10 +130,19 @@ static const uint8_t DIV_PER_QUARTER[NDIV] = {1, 2, 3, 4, 6, 8, 12};
 static const char *const DDIV_NAME[NDDIV] = {"1/16", "1/8T", "1/8", "1/8.", "1/4", "1/4.", "1/2"};
 static const uint8_t DDIV_NUM[NDDIV] = {1, 1, 1, 3, 1, 3, 2}, DDIV_DEN[NDDIV] = {4, 3, 2, 4, 1, 2, 1};   /* of a quarter */
 
-/* the pages: four knobs each (-1 = no knob) */
+/* the pages: four knobs each (-1 = no knob). DØG-5 has 20 (CLAUDE.md §5); a button's pages are contiguous, so a
+ * family is "first page + count" (FAM_* below). DRIVE, TAPE and VOICE + have no knobs yet: their parameters
+ * (preamp drive, tape degrade, polyphony) arrive with the Psych Chain / P_POLY_N, which change the patch and the
+ * DSP -- not this step. */
 typedef struct { const char *title; int8_t p[4]; } page_t;
-enum { PG_PERFORM, PG_OSC1, PG_OSC2, PG_OSCMOD, PG_FILTER, PG_FILTER2, PG_FENV, PG_AENV, PG_LFO, PG_LFODEST,
-       PG_LFO2, PG_ARP, PG_CHORUS, PG_DELAY, PG_REVERB, PG_VOICE, PG_OUTPUT, PG_GLOBAL, NPAGE };
+enum { PG_PERFORM,                                                              /* HOME */
+       PG_OSC1, PG_OSC2, PG_OSCMOD, PG_FILTER, PG_FILTER2,                      /* EDIT */
+       PG_FENV, PG_AENV,                                                        /* ENV */
+       PG_LFO, PG_LFODEST, PG_LFO2,                                             /* LFO */
+       PG_DRIVE, PG_BBD, PG_SPRING, PG_TAPE,                                    /* FX: the Psych Chain */
+       PG_ARP,                                                                  /* ARP */
+       PG_GLOBAL, PG_VOICE, PG_VOICE2, PG_OUTPUT,                               /* GLO */
+       NPAGE };
 static const page_t PAGE[NPAGE] = {
     [PG_PERFORM] = {"PERFORM", {P_CUTOFF, P_RESO, P_FENV_AMT, P_AR}},
     [PG_OSC1] = {"OSC 1", {P_O1_WAVE, P_O1_PW, P_O1_LVL, P_NOISE}},
@@ -146,13 +155,23 @@ static const page_t PAGE[NPAGE] = {
     [PG_LFO] = {"LFO", {P_LFO_SHAPE, P_LFO_RATE, P_LFO_DELAY, P_LFO_PHASE}},
     [PG_LFODEST] = {"LFO DEST", {P_LFO_PITCH, P_LFO_PWM, P_LFO_FLT, P_LFO_AMP}},
     [PG_LFO2] = {"LFO +", {P_LFO_PITCH_TO, P_LFO_PWM_TO, -1, -1}},
-    [PG_VOICE] = {"VOICE", {P_MODE, P_UNI_N, P_UNI_DET, P_GLIDE}},
-    [PG_OUTPUT] = {"OUTPUT", {P_VINTAGE, P_SPREAD, P_BEND, P_VOLUME}},
+    [PG_DRIVE] = {"DRIVE", {-1, -1, -1, -1}},                                   /* preamp drive: Psych Chain, not built */
+    [PG_BBD] = {"BBD DELAY", {P_DLY_TIME, P_DLY_FB, P_DLY_TONE, P_DLY_MIX}},
+    [PG_SPRING] = {"SPRING", {P_REV_SIZE, P_REV_DAMP, P_REV_PRE, P_REV_MIX}},
+    [PG_TAPE] = {"TAPE", {-1, -1, -1, -1}},                                     /* tape degrade: Psych Chain, not built */
     [PG_ARP] = {"ARP", {P_ARP_MODE, P_ARP_DIV, P_ARP_OCT, P_ARP_GATE}},
-    [PG_CHORUS] = {"CHORUS", {P_CHO_RATE, P_CHO_DEPTH, P_CHO_MIX, -1}},
-    [PG_DELAY] = {"DELAY", {P_DLY_TIME, P_DLY_FB, P_DLY_TONE, P_DLY_MIX}},
-    [PG_REVERB] = {"REVERB", {P_REV_SIZE, P_REV_DAMP, P_REV_PRE, P_REV_MIX}},
     [PG_GLOBAL] = {"GLOBAL", {-1, -1, -1, -1}},   /* tempo, MIDI channel, tune, CPU: globals, drawn by hand */
+    [PG_VOICE] = {"VOICE", {P_MODE, P_UNI_N, P_UNI_DET, P_GLIDE}},
+    [PG_VOICE2] = {"VOICE +", {-1, -1, -1, -1}},                                /* polyphony (P_POLY_N): not built */
+    [PG_OUTPUT] = {"OUTPUT", {P_VINTAGE, P_SPREAD, P_BEND, P_VOLUME}},
+};
+_Static_assert(NPAGE == 20, "DOG-5 has 20 pages (CLAUDE.md section 5)");
+
+/* the button families: each remembers its last page (fam_last in obervave.c) */
+enum { FAM_HOME, FAM_EDIT, FAM_ENV, FAM_LFO, FAM_FX, FAM_ARP, FAM_GLO, NFAM };
+static const struct { uint8_t first, count; } FAM[NFAM] = {
+    [FAM_HOME] = {PG_PERFORM, 1}, [FAM_EDIT] = {PG_OSC1, 5}, [FAM_ENV] = {PG_FENV, 2}, [FAM_LFO] = {PG_LFO, 3},
+    [FAM_FX] = {PG_DRIVE, 4}, [FAM_ARP] = {PG_ARP, 1}, [FAM_GLO] = {PG_GLOBAL, 4},
 };
 
 typedef struct { uint8_t v[PATCH_BYTES]; } patch_t;   /* v[0..79] parameters, v[80..93] name, v[94..95] spare */
