@@ -346,24 +346,9 @@ static void draw_hints(void)
     else if (layer == L_FX) ui_hints("KNOBS: CHORUS DELAY REVERB", "AND THE DELAY'S TIME", C_AMBER);
 }
 
-static void draw_tags(void) { draw_header(); }
-static void draw_scope(void) { ui_scope(scope, SCOPE_N); }
-static void draw_leds(void) { ui_leds(ui_vlevel, NV); }
-
-/* ---- the main loop */
-#define KEY0 53u                               /* key 0 = F3 */
-/* the keys and MIDI in: read by the main loop, and while the screen is drawn (app_idle, notes only), so the notes
- * of a chord or among a stream of CCs are not held up by a redraw (a knob page is ~30 ms on the SPI alone) */
-static uint32_t dirty_hdr = 1, dirty_page = 1, dirty_tags = 1;
-static uint32_t keys_prev, clk_n, clk_t0, clk_last, idle_ok;
-static uint8_t held_key[27];
-
-#if BOARD_SMK37
-#include "obv_smk.h"                            /* the SMK-37's outer keys, faders, wheels, < >, FADER BANK */
-#endif
-
 #ifdef OBV_HOST
 static uint32_t host_page_now(void) { return page; }   /* (tests/host.c: "T expect page N") */
+static uint32_t host_map_idle_calls(void);
 #endif
 static uint8_t fam_last[NFAM];                  /* each family's last page (set to FAM[].first at start) */
 static uint32_t in_fam(uint32_t f) { return page >= FAM[f].first && page < (uint32_t)FAM[f].first + FAM[f].count; }
@@ -379,6 +364,66 @@ static void fam_note(uint32_t pg)               /* a page is entered: its family
     for (f = 0; f < NFAM; f++)
         if (pg >= FAM[f].first && pg < (uint32_t)FAM[f].first + FAM[f].count) fam_last[f] = (uint8_t)pg;
 }
+
+/* HOLD HOME: the control map of the page you are on (ui_map in obv_ui.h). The page buttons show where a press goes
+ * NOW (the next page in their family if you are in it, else the page the family was left on), so the map stays true
+ * as the pages and the families' memories change */
+static uint32_t map_on, map_dirty, home_down, home_t;
+#define MAP_HOLD_MS 350u                        /* HOME held this long: the map (a tap, shorter, goes HOME on its release) */
+#ifdef OBV_HOST
+static uint32_t host_idle_n, host_map_idle;     /* tests: app_idle calls that got through, and during the last map draw */
+#endif
+static void draw_map(void)
+{
+    static const struct { uint8_t fam; const char *name; } PB[MAP_ROWS] = {
+        {FAM_EDIT, "EDIT"}, {FAM_ENV, "ENV"}, {FAM_LFO, "LFO"}, {FAM_FX, "FX"}, {FAM_GLO, "GLO"}, {FAM_ARP, "ARP"}};
+    static const map_row_t R[MAP_ROWS] = {
+        {"HOME", "GO HOME"}, {"SAVE", "TAP x2"}, {"OCT-/+", "OCTAVE"}, {"SELECT", "TEMPO"}, {NM_PRESETS, "SOUND"}, {"FX HELD", "MIXES"}};
+    map_row_t L[MAP_ROWS];
+    knob_view_t k[4];
+    int32_t i, hi_l = -1, hi_r = page == PG_PERFORM ? 0 : -1;
+    uint32_t none = 1;
+#ifdef OBV_HOST
+    uint32_t idle0 = host_idle_n;
+#endif
+    for (i = 0; i < 4; i++) {
+        int32_t p = PAGE[page].p[i];
+        k[i].present = 0;
+        if (page == PG_GLOBAL) {                /* (the globals are drawn by hand: tempo, -, MIDI channel, tune) */
+            static const char *const GL[4] = {"TEMPO", "", "MIDI CH", "TUNE"};
+            k[i].label = GL[i]; k[i].present = i != 1;
+        } else if (p >= 0) { k[i].label = PDEF[p].name; k[i].present = 1; }
+        none &= !k[i].present;
+    }
+    for (i = 0; i < MAP_ROWS; i++) {
+        L[i].name = PB[i].name;
+        L[i].what = PB[i].fam == FAM_ARP && page == PG_ARP ? "HOLD" : PAGE[cycle_fam(PB[i].fam)].title;
+        if (in_fam(PB[i].fam)) hi_l = i;
+    }
+    ui_map(PAGE[page].title, k, none ? "NO KNOBS HERE YET" : 0, L, R, hi_l, hi_r, "LET GO: STAY ON THIS PAGE");
+#ifdef OBV_HOST
+    host_map_idle = host_idle_n - idle0;
+#endif
+}
+
+#ifdef OBV_HOST
+static uint32_t host_map_idle_calls(void) { return host_map_idle; }
+#endif
+static void draw_tags(void) { draw_header(); }
+static void draw_scope(void) { ui_scope(scope, SCOPE_N); }
+static void draw_leds(void) { ui_leds(ui_vlevel, NV); }
+
+/* ---- the main loop */
+#define KEY0 53u                               /* key 0 = F3 */
+/* the keys and MIDI in: read by the main loop, and while the screen is drawn (app_idle, notes only), so the notes
+ * of a chord or among a stream of CCs are not held up by a redraw (a knob page is ~30 ms on the SPI alone) */
+static uint32_t dirty_hdr = 1, dirty_page = 1, dirty_tags = 1;
+static uint32_t keys_prev, clk_n, clk_t0, clk_last, idle_ok;
+static uint8_t held_key[27];
+
+#if BOARD_SMK37
+#include "obv_smk.h"                            /* the SMK-37's outer keys, faders, wheels, < >, FADER BANK */
+#endif
 
 static void keys_in(void)
 {
@@ -448,6 +493,9 @@ static void app_idle(void)                      /* lcd.c while a strip goes out,
 {
     static uint32_t busy;
     if (!idle_ok || busy) return;
+#ifdef OBV_HOST
+    host_idle_n++;                              /* (tests: "T expect idle N" -- a draw that waits must call this) */
+#endif
     busy = 1;
     keys_in();
     midi_in(1);
@@ -627,7 +675,19 @@ static void app_main(void)
         if (b & (1u << BTN_HOME)) {             /* HOME: PERFORM; while a layer is held: lock it open; locked: let it go */
             if (layer && !layer_lock) { layer_lock = 1; layer_used = 1; say("LOCKED: ITS BUTTON ENDS IT"); }
             else if (layer_lock) { layer = L_NONE; layer_lock = 0; dirty_page = dirty_tags = 1; leds_q = 0xFFFFFFFFu; }
-            else np = PG_PERFORM;
+            else { home_down = 1; home_t = fm1_ms; }   /* tap: HOME when it is let go; held: the control map */
+        }
+        if (home_down && (rel & (1u << BTN_HOME))) {
+            home_down = 0;
+            if (map_on) {                       /* the map is dismissed, the page stays */
+                map_on = 0;
+                lcd_fill(0, 0, 240, 240, C_PANEL);
+                dirty_hdr = dirty_page = dirty_tags = 1; hints_key = leds_q = 0xFFFFFFFFu; scope_state = 1; t_scope = 0;
+            } else np = PG_PERFORM;
+        }
+        if (home_down && !map_on && fm1_ms - home_t >= MAP_HOLD_MS) {
+            map_on = 1; map_dirty = 1;
+            lcd_fill(0, 0, 240, 240, C_PANEL);  /* (the map's strips do not tile the screen like the page's) */
         }
         if (b & ((1u << BTN_ENV) | (1u << BTN_LFO) | (1u << BTN_ARP)) && layer_lock) {   /* (another button lets a lock go) */
             layer = L_NONE; layer_lock = 0; b &= ~((1u << BTN_ENV) | (1u << BTN_LFO) | (1u << BTN_ARP));
@@ -659,7 +719,8 @@ static void app_main(void)
         if (save_armed && fm1_ms - save_t > 3000u) { save_armed = 0; dirty_page = dirty_hdr = 1; }
         if (np != page) {
             if (layer_lock) { layer = L_NONE; layer_lock = 0; }
-            page = np; fam_note(np); dirty_page = 1; hints_key = 0xFFFFFFFFu; leds_q = 0xFFFFFFFFu;
+            page = np; fam_note(np); dirty_page = 1; map_dirty = map_on;   /* (the map follows the page) */
+            hints_key = 0xFFFFFFFFu; leds_q = 0xFFFFFFFFu;
         }
 
         /* encoders */
@@ -753,36 +814,40 @@ static void app_main(void)
 #endif
         /* the screen: only what changed */
         idle_ok = 1;
-        if (dirty_hdr && fm1_ms - t_hdr >= 30u) { dirty_hdr = 0; t_hdr = fm1_ms; draw_header(); }
-        if (dirty_page && fm1_ms - t_page >= 30u) { dirty_page = 0; t_page = fm1_ms; draw_page(); }
-        if (dirty_tags) { dirty_tags = 0; draw_tags(); }
-        if (fm1_ms - t_led >= 40u) {
-            uint32_t q = 0;
-            t_led = fm1_ms;
-            for (k = 0; k < NV; k++) q = q * 9u + ((uint32_t)ui_vlevel[k] >> 12);   /* 8 steps a LED: redraw on a change */
+        if (map_on) {                           /* HOME held: the map has the whole screen (notes still sound) */
+            if (map_dirty && fm1_ms - t_page >= 30u) { map_dirty = 0; t_page = fm1_ms; draw_map(); }
+        } else {
+            if (dirty_hdr && fm1_ms - t_hdr >= 30u) { dirty_hdr = 0; t_hdr = fm1_ms; draw_header(); }
+            if (dirty_page && fm1_ms - t_page >= 30u) { dirty_page = 0; t_page = fm1_ms; draw_page(); }
+            if (dirty_tags) { dirty_tags = 0; draw_tags(); }
+            if (fm1_ms - t_led >= 40u) {
+                uint32_t q = 0;
+                t_led = fm1_ms;
+                for (k = 0; k < NV; k++) q = q * 9u + ((uint32_t)ui_vlevel[k] >> 12);   /* 8 steps a LED: redraw on a change */
 #if BOARD_SMK37
-            if (smk_overlay_draw(&leds_q)) ;    /* a fader's bar, a bank */
-            else
+                if (smk_overlay_draw(&leds_q)) ;    /* a fader's bar, a bank */
+                else
 #endif
-            if (layer) draw_hints();
-            else if (q != leds_q) { leds_q = q; draw_leds(); }
-            if (page == PG_GLOBAL && fm1_ms - t_page >= 250u) dirty_page = 1;
-        }
-        if (scope_state == 3u && fm1_ms - t_scope >= 50u) {
-            uint32_t v, best = 0, bl = 0;
-            t_scope = fm1_ms;
-            draw_scope();
-            for (v = 0; v < NV; v++)            /* the stride from the loudest voice's period: ~2 cycles across */
-                if ((uint32_t)ui_vlevel[v] > bl) { bl = (uint32_t)ui_vlevel[v]; best = ui_vnote[v]; }
-            if (bl) {
-                uint32_t inc = pitch_inc((int32_t)best << 8), period = inc ? 0xFFFFFFFFu / inc : 1000u;
-                scope_stride = clampi((int32_t)(period * 2u / SCOPE_N), 1, 64);
+                if (layer) draw_hints();
+                else if (q != leds_q) { leds_q = q; draw_leds(); }
+                if (page == PG_GLOBAL && fm1_ms - t_page >= 250u) dirty_page = 1;
             }
-            scope_state = 1;
-        } else if (scope_state == 1u && fm1_ms - t_scope >= 400u) {   /* silence: a flat line */
-            t_scope = fm1_ms;
-            for (i = 0; i < SCOPE_N; i++) scope[i] = 0;
-            draw_scope();
+            if (scope_state == 3u && fm1_ms - t_scope >= 50u) {
+                uint32_t v, best = 0, bl = 0;
+                t_scope = fm1_ms;
+                draw_scope();
+                for (v = 0; v < NV; v++)            /* the stride from the loudest voice's period: ~2 cycles across */
+                    if ((uint32_t)ui_vlevel[v] > bl) { bl = (uint32_t)ui_vlevel[v]; best = ui_vnote[v]; }
+                if (bl) {
+                    uint32_t inc = pitch_inc((int32_t)best << 8), period = inc ? 0xFFFFFFFFu / inc : 1000u;
+                    scope_stride = clampi((int32_t)(period * 2u / SCOPE_N), 1, 64);
+                }
+                scope_state = 1;
+            } else if (scope_state == 1u && fm1_ms - t_scope >= 400u) {   /* silence: a flat line */
+                t_scope = fm1_ms;
+                for (i = 0; i < SCOPE_N; i++) scope[i] = 0;
+                draw_scope();
+            }
         }
         idle_ok = 0;
         if ((set_dirty || ps_dirty) && engine_quiet() && fm1_ms - set_t > 2000u) {   /* when silent: an erase stalls the sound */

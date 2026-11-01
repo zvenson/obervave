@@ -95,7 +95,7 @@ then decays and the art returns. The bar is never permanently filled with live v
 his name), no knob values. Legible 16px font (`FONT_S`/Terminus). It is the one element that never degrades
 and is never broken by the fracture — **top of the screen breaks, the bottom bar is sacred.**
 
-**Pages = 20**, a table edit (one row each):
+**Pages = 20** (**DONE**, `PAGE[]` in `obv_params.h`; DRIVE, TAPE and VOICE + have no knobs until the Psych Chain / `P_POLY_N` land), a table edit (one row each):
 
 | Family | Button | Pages |
 |---|---|---|
@@ -112,9 +112,12 @@ ALGORITHM, PLAY, REC.)
 
 **Adopted from Skiff** (the strongest navigation model in the scene; upstream already borrows from it):
 - ⭐ **Hold HOME = a live control map** showing what every button/knob does on the current page. This is the
-  answer to the renamed controls — no memorisation, no dual-labelling; the headers stay pure. Build this.
-- **Page families remember their last page** (one `uint8_t` each) — so HOME→play→EDIT returns you to where
-  you were, not to the top of the cycle. A real live-ergonomics win.
+  answer to the renamed controls — no memorisation, no dual-labelling; the headers stay pure. **DONE**
+  (`ui_map`/`draw_map`; tests/map.txt): held ≥ 350 ms it shows the page's four knobs and where each page button
+  goes *now*; letting go stays on the page. A tap goes HOME **on release** (that is the cost: HOME no longer
+  acts on press). The map draw calls `app_idle()` (DRAW RULE) — the host script asserts it.
+- **Page families remember their last page** (one `uint8_t` each, `fam_last`) — so HOME→play→EDIT returns you to
+  where you were, not to the top of the cycle. **DONE** (tests/families.txt, 43 `expect page` checks).
 - Each parameter page **draws what its knobs affect** (envelope shape, LFO wave, etc.) — already DØG-5 law.
 
 **OCT− / OCT+ = octave, always** (−2..+2, both = 0). Undo/redo was a sequencer feature and leaves with it.

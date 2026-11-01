@@ -181,6 +181,58 @@ static void ui_page(const char *title, const knob_view_t *k, const char *note)
     cv_blit(0, 46);
 }
 
+/* HOLD HOME: the control map of the page you are on. Four strips (the canvas is 120 rows at most on the host), each
+ * followed by app_idle(): the DRAW RULE (CLAUDE.md section 6), a draw that takes time lets the notes through.
+ *   top    the page's name
+ *   knobs  KNOB 1-4 and what each one is on this page ("-" = none)
+ *   rows   left: where each page button goes NOW (the live part); right: what the rest of the panel does
+ *   foot   what letting go does */
+typedef struct { const char *name, *what; } map_row_t;
+#define MAP_ROWS 6
+static void ui_map(const char *title, const knob_view_t *k, const char *knob_note, const map_row_t *l, const map_row_t *r,
+                   int32_t hi_l, int32_t hi_r, const char *foot)
+{
+    int32_t i;
+    cv_begin(240, 44, C_PANEL);
+    cv_text((240 - text_w(&FONT_S, title)) / 2, 4, &FONT_S, title, C_AMBER);
+    cv_text((240 - text_w(&FONT_S, "CONTROL MAP")) / 2, 22, &FONT_S, "CONTROL MAP", C_DIMT);
+    cv_rect(0, 42, 240, 1, C_RULE);
+    cv_blit(0, 0);
+    app_idle();
+    cv_begin(240, 50, C_PANEL);
+    for (i = 0; i < 4; i++) {
+        char n[8];
+        n[0] = 'K'; n[1] = 'N'; n[2] = 'O'; n[3] = 'B'; n[4] = ' '; n[5] = (char)('1' + i); n[6] = 0;
+        cv_text(30 + 60 * i - text_w(&FONT_S, n) / 2, 2, &FONT_S, n, C_DIMT);
+        if (k[i].present)
+            cv_text(30 + 60 * i - text_w(&FONT_S, k[i].label) / 2, 22, &FONT_S, k[i].label, C_CREAM);
+        else if (!knob_note)
+            cv_text(30 + 60 * i - text_w(&FONT_S, "-") / 2, 22, &FONT_S, "-", C_RULE);
+        if (i && !knob_note) cv_rect(60 * i, 4, 1, 40, C_RULE);
+    }
+    if (knob_note)
+        cv_text((240 - text_w(&FONT_S, knob_note)) / 2, 22, &FONT_S, knob_note, C_DIMT);
+    cv_blit(0, 44);
+    app_idle();
+    cv_begin(240, 116, C_PANEL);
+    cv_rect(0, 1, 240, 1, C_RULE);
+    cv_rect(124, 8, 1, 6 * 18 - 4, C_RULE);
+    for (i = 0; i < MAP_ROWS; i++) {
+        int32_t y = 6 + i * 18;
+        cv_text(5, y, &FONT_S, l[i].name, i == hi_l ? C_AMBER : C_CREAM);
+        cv_text(43, y, &FONT_S, l[i].what, i == hi_l ? C_AMBER : C_DIMT);
+        cv_text(130, y, &FONT_S, r[i].name, i == hi_r ? C_AMBER : C_CREAM);
+        cv_text(236 - text_w(&FONT_S, r[i].what), y, &FONT_S, r[i].what, i == hi_r ? C_AMBER : C_DIMT);
+        app_idle();                             /* (a row is ~1 ms: the keys and MIDI in between) */
+    }
+    cv_blit(0, 96);
+    app_idle();
+    cv_begin(240, 24, C_PANEL);
+    cv_text((240 - text_w(&FONT_S, foot)) / 2, 2, &FONT_S, foot, C_DIMT);
+    cv_blit(0, 216);
+    app_idle();
+}
+
 static void ui_scope(const int16_t *s, uint32_t n)
 {
     uint32_t i;
