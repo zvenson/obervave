@@ -20,6 +20,8 @@ run() { echo "== $1"; shift; "$@" || fail=1; }
 
 run "FM-1 app on the host: the default script plays, screens and sound" sh tests/run_host.sh
 run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_host.sh
+# page families remember their last page: "T expect page N" lines in the script fail the run (exit 1) on a miss
+run "FM-1 page families: EDIT to FILTER, HOME, EDIT returns to FILTER" sh tests/run_host.sh tests/families.txt
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
 # the 96-byte / 3-sector / DOG5 program store (the FM-1 and SMK-37 host binaries from run_host.sh above):
 # 99 distinct patches round-trip byte-exact across a power cycle, one save touches only its sector, an old

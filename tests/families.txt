@@ -1,0 +1,101 @@
+# Page families remember their last page (CLAUDE.md section 5): a family's button from outside the family goes back to
+# the page it was left on; inside the family it steps on. Each 'expect page N' fails the run (exit 1) if the app is
+# elsewhere. Page numbers = PG_* in obv_params.h: HOME 0, EDIT 1-5 (OSC1 OSC2 OSCMOD FILTER FILTER+), ENV 6-7,
+# LFO 8-10, FX 11-14 (DRIVE BBD SPRING TAPE), ARP 15, GLO 16-19 (GLOBAL VOICE VOICE+ OUTPUT).
+# tests/run_host.sh tests/families.txt   (the shots show the headline case: FILTER, HOME, FILTER again)
+2900 expect page 0   # boots on HOME
+3000 btn 6   # EDIT -> OSC 1  (from HOME: the family's first page, nothing remembered yet)
+3150 expect page 1
+3400 btn 6   # EDIT -> OSC 2
+3550 expect page 2
+3800 btn 6   # EDIT -> OSC MOD
+3950 expect page 3
+4200 btn 6   # EDIT -> FILTER  (FILTER)
+4350 expect page 4
+4400 shot
+4600 btn 8   # HOME -> HOME
+4750 expect page 0
+4800 shot
+5000 btn 6   # EDIT -> FILTER  (BACK on FILTER, not OSC 1: the headline case)
+5150 expect page 4
+5200 shot
+5400 btn 6   # EDIT -> FILTER +  (inside the family it steps on)
+5550 expect page 5
+5800 btn 6   # EDIT -> OSC 1  (and wraps)
+5950 expect page 1
+6200 btn 6   # EDIT -> OSC 2
+6350 expect page 2
+6600 btn 6   # EDIT -> OSC MOD
+6750 expect page 3
+7000 btn 6   # EDIT -> FILTER
+7150 expect page 4
+7400 btn 6   # EDIT -> FILTER +
+7550 expect page 5
+# two families, left and returned to out of order
+7800 btn 4   # ENV -> FILTER ENV
+7950 expect page 6
+8200 btn 4   # ENV -> AMP ENV  (AMP ENV)
+8350 expect page 7
+8600 btn 8   # HOME -> HOME
+8750 expect page 0
+9000 btn 6   # EDIT -> FILTER +  (FILTER + remembered)
+9150 expect page 5
+9400 btn 4   # ENV -> AMP ENV  (AMP ENV remembered, not FILTER ENV)
+9550 expect page 7
+9800 btn 5   # LFO -> LFO
+9950 expect page 8
+10200 btn 5   # LFO -> LFO DEST  (LFO DEST)
+10350 expect page 9
+10600 btn 10   # ARP -> ARP
+10750 expect page 15
+11000 btn 5   # LFO -> LFO DEST  (from ARP: LFO DEST remembered)
+11150 expect page 9
+11400 btn 6   # EDIT -> FILTER +  (from LFO: FILTER + still remembered)
+11550 expect page 5
+# FX and GLO
+11800 btn 2   # FX -> DRIVE
+11950 expect page 11
+12200 btn 2   # FX -> BBD DELAY
+12350 expect page 12
+12600 btn 2   # FX -> SPRING  (SPRING)
+12750 expect page 13
+13000 btn 7   # GLO -> GLOBAL
+13150 expect page 16
+13400 btn 7   # GLO -> VOICE
+13550 expect page 17
+13800 btn 7   # GLO -> VOICE +  (VOICE +)
+13950 expect page 18
+14200 btn 2   # FX -> SPRING  (from VOICE +: SPRING remembered)
+14350 expect page 13
+14600 btn 7   # GLO -> VOICE +  (from SPRING: VOICE + remembered)
+14750 expect page 18
+15000 btn 4   # ENV -> AMP ENV
+15150 expect page 7
+15400 btn 5   # LFO -> LFO DEST
+15550 expect page 9
+15800 btn 6   # EDIT -> FILTER +
+15950 expect page 5
+16200 btn 8   # HOME -> HOME
+16350 expect page 0
+16600 btn 7   # GLO -> VOICE +  (from HOME)
+16750 expect page 18
+17000 btn 7   # GLO -> OUTPUT  (OUTPUT)
+17150 expect page 19
+17400 btn 7   # GLO -> GLOBAL  (wraps to GLOBAL)
+17550 expect page 16
+17800 btn 8   # HOME -> HOME
+17950 expect page 0
+18200 btn 7   # GLO -> GLOBAL  (GLOBAL was the last one entered)
+18350 expect page 16
+# HOME and ARP are one-page families: HOME always goes to HOME, ARP to ARP
+18600 btn 8   # HOME -> HOME
+18750 expect page 0
+19000 btn 8   # HOME -> HOME
+19150 expect page 0
+19400 btn 10   # ARP -> ARP
+19550 expect page 15
+19800 btn 10   # ARP -> ARP  (on its page ARP toggles HOLD and stays)
+19950 expect page 15
+20200 btn 8   # HOME -> HOME
+20350 expect page 0
+20900 end

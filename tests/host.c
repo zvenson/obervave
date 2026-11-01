@@ -185,8 +185,11 @@ typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int8_t enc, encn
 /* SMK-37 builds (BOARD_SMK37) also: "T vel V" (the velocity of the keys pressed from now), "T pad P V" (hardware pad
  * P hit at velocity V, V 0 = let go), "T fader F V" (0..127), "T wheel W RAW" (0 pitch, 1 mod; raw ADC 0..1023),
  * "T xkey K V" (keybed key K 0..36 at V, 0 = let go: the outer keys 0..4, 32..36), "T dump" (pads and state);
- * any build: "T shot" (the screen at T -> OUT-T.ppm) */
-enum { HS_NONE, HS_VEL, HS_PAD, HS_FADER, HS_WHEEL, HS_XKEY, HS_DUMP, HS_SHOT, HS_CHECK };
+ * any build: "T shot" (the screen at T -> OUT-T.ppm), "T expect page N" (the app must be on page N now: prints ok / FAIL
+ * and the run exits 1 on a FAIL; N = the page index, PG_* in obv_params.h) */
+enum { HS_NONE, HS_VEL, HS_PAD, HS_FADER, HS_WHEEL, HS_XKEY, HS_DUMP, HS_SHOT, HS_CHECK, HS_PAGE };
+static uint32_t host_page_now(void);            /* (obervave.c: the page the panel is on) */
+static uint32_t host_fails;
 static const host_ev_t SCRIPT0[] = {
     {200, 1u << 7, -1, 0, 0, 0, -1, 0},                         /* C4 */
     {700, 1u << 7 | 1u << 11 | 1u << 14, -1, 0, 0, 0, -1, 0},   /* + E4 G4: a chord */
@@ -226,6 +229,12 @@ static void read_script(const char *path)
         else if (!strcmp(what, "xkey")) { sscanf(line, "%*u %*s %u %u", &a, &b); e.smk = HS_XKEY; e.sa = (uint8_t)a; e.sb = (uint16_t)b; }
         else if (!strcmp(what, "dump")) e.smk = HS_DUMP;
         else if (!strcmp(what, "check")) e.smk = HS_CHECK;   /* (SMK: KNOB BANK pressed / let go: the panel check) */
+        else if (!strcmp(what, "expect")) {         /* "T expect page N" */
+            char kind[16] = "";
+            sscanf(line, "%*u %*s %15s %u", kind, &a);
+            if (!strcmp(kind, "page")) { e.smk = HS_PAGE; e.sa = (uint8_t)a; }
+            else { fprintf(stderr, "script: unknown expect '%s'\n", kind); continue; }
+        }
         else if (!strcmp(what, "shot")) e.smk = HS_SHOT;   /* (any board: the screen now -> OUT-<ms>.ppm) */
         else if (!strcmp(what, "midi")) { sscanf(line, "%*u %*s %i %u %u", (int *)&a, &b, &c); e.st = (uint8_t)a; e.d1 = (uint8_t)b; e.d2 = (uint8_t)c; }
         else continue;
@@ -322,6 +331,10 @@ static void platform_poll(void)                 /* one call = one millisecond */
     while (step < script_n && script[step].t <= fm1_ms) {
         if (script[step].smk == HS_SHOT) {
             write_ppm(fm1_ms);
+        } else if (script[step].smk == HS_PAGE) {
+            uint32_t now = host_page_now(), want = script[step].sa;
+            printf("%6u ms  expect page %u: on page %u  %s\n", fm1_ms, want, now, now == want ? "ok" : "FAIL");
+            host_fails += now != want;
         } else if (script[step].smk) {
 #if BOARD_SMK37
             static uint32_t vel = 100;
@@ -415,7 +428,7 @@ static void platform_poll(void)                 /* one call = one millisecond */
             CALLGRIND_DUMP_STATS;
         }
 #endif
-        exit(0);
+        exit(host_fails != 0);
     }
 }
 

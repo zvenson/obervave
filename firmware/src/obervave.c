@@ -362,12 +362,22 @@ static uint8_t held_key[27];
 #include "obv_smk.h"                            /* the SMK-37's outer keys, faders, wheels, < >, FADER BANK */
 #endif
 
+#ifdef OBV_HOST
+static uint32_t host_page_now(void) { return page; }   /* (tests/host.c: "T expect page N") */
+#endif
+static uint8_t fam_last[NFAM];                  /* each family's last page (set to FAM[].first at start) */
 static uint32_t in_fam(uint32_t f) { return page >= FAM[f].first && page < (uint32_t)FAM[f].first + FAM[f].count; }
 static uint32_t cycle_fam(uint32_t f)           /* a button steps through its pages (FAM in obv_params.h) */
 {
     uint32_t first = FAM[f].first, count = FAM[f].count;
-    if (in_fam(f)) return first + (page - first + 1u) % count;
-    return first;
+    if (in_fam(f)) return first + (page - first + 1u) % count;   /* in the family: the next page */
+    return fam_last[f];                         /* from elsewhere: back where it was left (HOME, play, EDIT = the same page) */
+}
+static void fam_note(uint32_t pg)               /* a page is entered: its family remembers it */
+{
+    uint32_t f;
+    for (f = 0; f < NFAM; f++)
+        if (pg >= FAM[f].first && pg < (uint32_t)FAM[f].first + FAM[f].count) fam_last[f] = (uint8_t)pg;
 }
 
 static void keys_in(void)
@@ -567,6 +577,7 @@ static void app_main(void)
     ctl_tune8 = set.tune * 256 / 100;
     load_program(set.prog);
     ctl_panic = 0;
+    for (k = 0; k < NFAM; k++) fam_last[k] = FAM[k].first;
 
     ui_splash();
     scope_state = 1;
@@ -648,7 +659,7 @@ static void app_main(void)
         if (save_armed && fm1_ms - save_t > 3000u) { save_armed = 0; dirty_page = dirty_hdr = 1; }
         if (np != page) {
             if (layer_lock) { layer = L_NONE; layer_lock = 0; }
-            page = np; dirty_page = 1; hints_key = 0xFFFFFFFFu; leds_q = 0xFFFFFFFFu;
+            page = np; fam_note(np); dirty_page = 1; hints_key = 0xFFFFFFFFu; leds_q = 0xFFFFFFFFu;
         }
 
         /* encoders */
