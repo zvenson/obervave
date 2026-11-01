@@ -69,9 +69,9 @@ specific fixes deliberately if ever needed. The base is ours and has stopped mov
 
 | Fact | Value | Source |
 |---|---|---|
-| Program slots | **99** (`NPROG 99`) — 1–64 factory, 65–99 INIT | `firmware/src/obv_params.h` |
-| Patch size | `PATCH_BYTES 80` (→ **grow to 96**, see §7) | `obv_params.h` |
-| Patch name field | `PATCH_NAME 10` (→ **widen to 14**, see §7) | `obv_params.h` |
+| Program slots | **99** (`NPROG 99`) — **1–32 the DØG-5 factory (`NFACT 32`), 33–99 INIT** | `firmware/src/obv_params.h` |
+| Patch size | **`PATCH_BYTES 96`** (was 80; grown — §7, done) — 42 patches per 4 KiB sector, 3 sectors | `obv_params.h` |
+| Patch name field | **`PATCH_NAME 14`** (was 10; widened — §7, done), at a fixed offset `PATCH_NAME_AT 80` | `obv_params.h` |
 | Pages | 19 in base (DØG-5 → **20**, see §5), a table of `{title,{4 param ids}}` | `obv_params.h` PG_* |
 | Font | **ASCII 32–126 only**; anything else draws as `?` | `gfx.c`, `felucca_font.h` |
 | ⚠️ Ø renders as `?` | `THE DØG` currently shows `THE D?G` — **fix via `tools/gen_font.py`** (Terminus has Ø) | — |
@@ -152,12 +152,17 @@ loop.** No new drawing code may block without yielding to notes. That is the who
 
 ## 7. THE PRESET BANK
 
-- **99 slots** (inherited). **A/B as a write-lock, not a store expansion:** lock slots 1–64 (factory, THE
-  POUND, write-protected) vs 65–99 (live, THE PACK). The old "expand to 64" plan is obsolete — 99 is bigger.
-- **Widen the name field 10 → 14 characters, and grow `PATCH_BYTES` 80 → 96 in the same change.** With the
-  14-char name plus DØG-5's new params (Tape 2nd macro, `P_POLY_N`) the struct hits 79/80 — one spare byte,
-  which a planned v1.1 can't extend without migrating every patch. 96 costs ~1.6 KB flash (16×99) and buys
-  17 spare bytes. Do it before any patch exists (free migration).
+- **99 slots** (inherited). **A/B as a write-lock, not a store expansion:** lock slots 1–32 (factory, THE
+  POUND, write-protected) vs 33–99 (live, THE PACK). The factory bank is now the 32 DØG-5 patches
+  (`NFACT 32`); the old "expand to 64" plan is obsolete — 99 is bigger, and the factory half tracks the
+  32-patch bank, not 64. (The write-lock itself is Stage 2 — the bytes/sectors below are done.)
+- **Name field widened 10 → 14 characters and `PATCH_BYTES` grown 80 → 96 — DONE** (§4, committed). The
+  14-char name plus DØG-5's new params (Tape 2nd macro, `P_POLY_N`) hit 79/80 at 80 bytes — one spare,
+  which a planned v1.1 couldn't extend without migrating every patch. The 96-byte record (name at a fixed
+  offset `PATCH_NAME_AT 80`, 14 bytes, then 2 spare) costs ~1.6 KB flash (16×99) and buys 2 spare bytes now
+  plus the whole 63..79 parameter gap (NPARAM 63) for growth. The store carries a new `"DOG5"` version tag,
+  so old 80-byte data is never misread; **42 patches per 4 KiB sector, 3 program sectors** hold the 99
+  slots. Done before any patch existed (free migration).
 - **The 32 patches** and their SOUND briefs are locked (`dog5-docs/DOG-5-presets.md`). Voice them by ear on the
   host build. Minimum gig set defined there if time bites. ~Half are buildable before the Psych Chain exists.
 - **4 names changed** for the 14-char fit (and taste): 09 Skinhead Bubble→**Skeenhead**, 17 North Water
@@ -207,7 +212,8 @@ wordmark) — full spec in the build kit.
 ## 10. BUILD ORDER
 
 **Stage 1 — foundations (no art, no toolchain needed):** fork pinned → host build + sim running as DØG-5 →
-font Ø fix → name 10→14 & `PATCH_BYTES` 80→96 → delete sequencer → 20-page table + hold-HOME map +
+font Ø fix → name 10→14 & `PATCH_BYTES` 80→96 (done; 14-char name, 96-byte record, 3 sectors, DOG5 tag) →
+delete sequencer → 20-page table + hold-HOME map +
 families-remember → `P_POLY_N`.
 **Stage 2 — the voice (no art, runs parallel to drawing):** Psych Chain (Drive, Tape, free-ms BBD, spring
 re-voice) → voice the 32 patches by ear → A/B write-lock.
@@ -226,7 +232,9 @@ Stages 1–2 need nothing but the repo. Stage 3 gates on the hand-drawn art.
 
 1. **LICENSING.md credit line** — confirmed: **"DØG-5 by ZIGGY (DØGS)"** (in `LICENSING.md`). The
    Felucca/Kuroshita, SLOOP/isod89, Dinghy/zvenson credits stay in full below it (GPL obligation).
-2. **`PATCH_BYTES` 80→96** — recommended yes (§7). Confirm.
+2. **`PATCH_BYTES` 80→96** — **DONE** (§4/§7, committed): 96-byte record, 14-char name at offset 80, new
+   `"DOG5"` store tag, 3 program sectors (42/sector). Proven by the host self-test (99 patches round-trip
+   byte-exact across a power cycle, save-isolation, old 80-byte "BOVP" sector rejected as empty INIT).
 3. **FM-1 arrival** — "within ~2 weeks" as of 27 Oct. Sets how much of Stage 3–4 finishes before it lands.
 4. **The 15–16 hand-drawn assets** (build kit §1) — the only thing gating Stage 3.
 

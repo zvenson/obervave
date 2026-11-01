@@ -19,7 +19,7 @@ Psych Chain design, the draw-priority mechanism, the IP rules. This document set
 | 3 | HOME = PERFORM, chapter-styled; HOME always snaps back to it | LOCKED (inherited, already works) |
 | 4 | Knob values appear as a **transient readout** over the art, Monologue-style; they are not permanent | LOCKED |
 | 5 | Bottom bar = **preset number + preset name only** | LOCKED |
-| 6 | Patch name field **widened 10 → 14 characters**; `PATCH_BYTES` 80 → 96. All 32 names now fit | LOCKED — see §5 |
+| 6 | Patch name field **widened 10 → 14 characters**; `PATCH_BYTES` 80 → 96; **`NFACT 32`**, store tag `"DOG5"`, **3 program sectors (42/sector)**. All 32 names fit | **DONE** — committed; see §5 |
 | 6b | **Variable polyphony `P_POLY_N`, 1–8, default 5** | LOCKED — cheap, see §5.2 |
 | 6c | Spring reverb: **"next closest thing," excellence not required** | LOCKED — closes the bank's biggest tone risk |
 | 7 | **Hold HOME = live control map** (the answer to the 16 renamed controls) | LOCKED — adopted from Skiff |
@@ -67,13 +67,15 @@ CI rebuild of 1.5 with no code change, and two better-tested releases have lande
 
 Everything below is **inherited free** and was not in the canon's base:
 
-- **99 program slots** — verified in source: `NPROG 99`, 1–64 factory, 65–99 INIT.
+- **99 program slots** — verified in source: `NPROG 99`. (The base fills 1–64 as factory; **DØG-5 cuts the
+  factory bank to 32 — `NFACT 32`, so 1–32 factory, 33–99 INIT**.)
 - **The note-timing fix** (§3) — the single most important inheritance.
 - **TRS MIDI IN** — real hardware MIDI in via a 3.5 mm TRS-to-DIN adapter. A keyboard, drum machine or
   sequencer can drive DØG-5 live, which matters in a band.
 - **The browser simulator**, in-tree and already built (§7).
 - **A designed update-loader screen** — a branding surface we inherit and reskin.
 - **Programs stored in their own flash sectors** (`psect`, FM-1 `0x97000`), not in the settings sector.
+  (DØG-5 extends this to **3 sectors**, `0x97000–0x99FFF`, for the 96-byte record at 42 patches/sector.)
 
 ### 1.4 How to capture it — the actual procedure
 
@@ -125,10 +127,10 @@ Cloned and read at the pinned commit. **The upstream README is wrong in two plac
 
 | Fact | Value | Where |
 |---|---|---|
-| Program slots | **`NPROG 99`** — 1–64 factory, 65–99 INIT | `obv_params.h:29` |
-| Patch size | **`PATCH_BYTES 80`** | `obv_params.h:25` |
-| **Patch name field** | **`PATCH_NAME 10`** — ten characters | `obv_params.h:24` |
-| Patch layout | `v[0..NPARAM)` parameters, `v[NPARAM..]` the name | `obv_params.h:153` |
+| Program slots | **`NPROG 99`** — base: 1–64 factory, 65–99 INIT. **DØG-5 now: `NFACT 32`, 1–32 factory, 33–99 INIT** | `obv_params.h` |
+| Patch size | base **`PATCH_BYTES 80`** → **DØG-5 now: 96** (3 program sectors, 42/sector) | `obv_params.h` |
+| **Patch name field** | base **`PATCH_NAME 10`** → **DØG-5 now: 14**, at fixed offset **`PATCH_NAME_AT 80`** | `obv_params.h` |
+| Patch layout | base `v[0..NPARAM)` params, name trailing. **DØG-5 now: `v[0..79]` params, `v[80..93]` name, `v[94..95]` spare** | `obv_params.h` |
 | Pages | **19** (`NPAGE`), as a table of `{title, {4 param ids}}` | `obv_params.h:128–150` |
 | Font | **ASCII 32–126 only.** Anything else draws as `?` | `gfx.c:126–135`, `felucca_font.h:1` |
 | Screen bands | `0–43` header · `46–143` page · `146–195` scope · `200–236` voice LEDs | `obv_ui.h:5–8` |
@@ -331,18 +333,24 @@ Spaces count. Lower case is safe (the font folds it to upper case). ASCII 32–1
 
 **30 THE DØG** fits at 7 characters but **needs the font fix in §2.1**, or it shows as `THE D?G`.
 
-### 5.1 ⚠️ Grow the struct in the same change: `PATCH_BYTES` 80 → 96
+### 5.1 ✅ DONE — grew the struct in the same change: `PATCH_BYTES` 80 → 96
 
-Measured: `NPARAM` 63 + name 10 = 73 of 80, so 7 bytes spare today. Widening the name to 14 fits
-(63 + 14 = 77, 3 spare) — but DØG-5 adds its own parameters (Tape's second macro, `P_POLY_N`), which lands
-the struct at **79 of 80: one spare byte.**
+Measured: `NPARAM` 63 + name 10 = 73 of 80, so 7 bytes spare in the base. Widening the name to 14 fits
+(63 + 14 = 77, 3 spare) — but DØG-5 adds its own parameters (Tape's second macro, `P_POLY_N`), which would
+land the struct at **79 of 80: one spare byte.**
 
 A v1.1 is already planned off the back of hardware testing, and a v1.1 with one spare byte cannot add a
-single parameter without migrating every saved patch.
+single parameter without migrating every saved patch — so we went to 96 **before any patch existed** (free
+migration).
 
-**Go to 96 now.** It costs **1,584 bytes of flash** (16 × 99 slots) against a preset budget that was ~5 KB of
-425 KB, and it buys **17 spare bytes**. Done before any patch exists, the migration is free. Done later, it
-is not.
+**Final 96-byte layout** (committed): `v[0..79]` parameters (`NPARAM 63`, so params occupy `0..62` and
+`63..79` is a 17-byte growth gap), name at the fixed offset **`PATCH_NAME_AT 80`** spanning `v[80..93]`
+(14 chars), and `v[94..95]` spare. Headroom for v1.1: the 17-byte parameter gap plus 2 trailing bytes.
+It cost **1,584 bytes of flash** (16 × 99 slots) against a preset budget that was ~5 KB of 425 KB. The store
+carries a new **`"DOG5"` version tag** so old 80-byte data is never misread, and the 99 slots now span
+**3 program sectors at 42 patches each** (proven by the host self-test: 99 distinct patches round-trip
+byte-exact across a power cycle, one save touches only its own sector, an old 80-byte `"BOVP"` sector loads
+as empty INIT).
 
 ### 5.2 Variable polyphony — `P_POLY_N`, 1–8, default 5
 
@@ -500,7 +508,7 @@ Two tone jobs *can* start now on the host build without hardware, and should, be
 |---|---|
 | `DOG-5-design-system.md` | **Deleted by Vincent.** Rebuild later from the character brief, not from the old one. |
 | `DOG-5-foundation.md` | §1–2 rewrite to the pinned base and §2's measured numbers. §5's UI map **replaced** by §4 here. Add the DRAW RULE (§3) beside the draw-priority list. Add the `-Os` trap and the font limit. |
-| `DOG-5-presets.md` | §1 replaced: 99 slots, not a 64-slot expansion; the remaining work is a **write-lock over a slot range**, not a store expansion. §3 names updated once Vincent returns the 13. Open decision "64-slot store" closes. |
+| `DOG-5-presets.md` | §1 replaced: 99 slots, not a 64-slot expansion; the remaining work is a **write-lock — lock slots 1–32 (THE POUND, factory, write-protected), 33–99 live (THE PACK)** — not a store expansion. The factory bank is now 32 patches (`NFACT 32`). §3 names updated once Vincent returns the 13. Open decision "64-slot store" closes. |
 | `DOG-5-chapter-specs.md` | Mechanically sound; re-skin Moonshine from purple to magenta, and re-skin the scene prose from orb/reaper to the character brief's world. |
 | `DOG-5-art-direction.md` | Retire §1–2 and §4–5 (superseded by the character brief). §3 and §6–10 survive. Add the parameter-page styling note from §4.4(iii). |
 | `DOG-5-character-brief.md` | Current. Add the screen architecture (§4) and the magenta change. |
