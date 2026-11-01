@@ -95,7 +95,7 @@ then decays and the art returns. The bar is never permanently filled with live v
 his name), no knob values. Legible 16px font (`FONT_S`/Terminus). It is the one element that never degrades
 and is never broken by the fracture — **top of the screen breaks, the bottom bar is sacred.**
 
-**Pages = 20** (**DONE**, `PAGE[]` in `obv_params.h`; DRIVE, TAPE and VOICE + have no knobs until the Psych Chain / `P_POLY_N` land), a table edit (one row each):
+**Pages = 20** (**DONE**, `PAGE[]` in `obv_params.h`; DRIVE and TAPE have no knobs until the Psych Chain lands; VOICE + carries `P_POLY_N`), a table edit (one row each):
 
 | Family | Button | Pages |
 |---|---|---|
@@ -140,11 +140,15 @@ patch storage. Build Drive/Tape as integer fixed-point.
 brighter DAMP, clamp SIZE so it can't bloom into a hall. **Excellence is NOT required** (Vincent has real
 analogue units); "the next closest thing" is explicitly enough. `REV_DIV 2` (half-rate) is the CPU lever.
 
-**Variable polyphony — `P_POLY_N`, range 1–8, default 5.** Cheap: every voice path already takes its window
-from `part_cards(part,&lo,&n)`; add one clamp + one parameter on a VOICE page. It won't speed up normal
-playing (idle voices are already skipped) — what it buys is a guaranteed worst-case CPU ceiling, real
-voice-stealing character (tonal, not spec), and it settles 5-vs-8 by ear on the device. Ships at 5 (keeps
-the five-motif: POLY 5, Fi(l)fth, 5th quadrant).
+**Variable polyphony — `P_POLY_N`, range 1–8, default 5. DONE** (on VOICE +; `poly_n()` in `obv_engine.h`;
+tests/poly.txt). It clamps the **POLY/DUAL** allocation window (`voice_alloc`), so a chord steals once the
+window fills — the voice-stealing character. **UNISON/MONO keep their own count (`P_UNI_N`), so no existing
+patch's sound changes** — the `part_cards` window the brief assumed went with track B, so the clamp lives in
+`voice_alloc` now. At `P_POLY_N = 8` the allocation is **byte-identical** to before the parameter existed
+(proven against the session-start build). It won't speed up normal playing (idle voices are already skipped) —
+what it buys is a worst-case CPU ceiling for POLY playing and the stealing character; it settles 5-vs-8 by
+ear on the device. Ships at 5 (keeps the five-motif: POLY 5, Fi(l)fth, 5th quadrant). It is byte 63 of the
+patch record (appended; MIDI CC 82; the earlier CCs are unchanged).
 
 **Note-event latency — resolved, inherited.** Upstream fixed note timing in 1.4.2 (notes are serviced
 inside the LCD's DMA wait via `app_idle`). We inherit it by pinning 1.5.3. **The one DRAW RULE going
@@ -217,7 +221,7 @@ wordmark) — full spec in the build kit.
 **Stage 1 — foundations (no art, no toolchain needed):** fork pinned → host build + sim running as DØG-5 →
 font Ø fix → name 10→14 & `PATCH_BYTES` 80→96 (done; 14-char name, 96-byte record, 3 sectors, DOG5 tag) →
 delete sequencer → 20-page table + hold-HOME map +
-families-remember → `P_POLY_N`.
+families-remember → `P_POLY_N` (done; byte 63, CC 82, VOICE +).
 **Stage 2 — the voice (no art, runs parallel to drawing):** Psych Chain (Drive, Tape, free-ms BBD, spring
 re-voice) → voice the 32 patches by ear → A/B write-lock.
 **Stage 3 — the screen (needs the art):** dog (REST+BARK registered redraw) → beam → bottom bar + transient

@@ -24,6 +24,8 @@ run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_ho
 run "FM-1 page families: EDIT to FILTER, HOME, EDIT returns to FILTER" sh tests/run_host.sh tests/families.txt
 # HOLD HOME = the control map; a tap still goes HOME; the map draw yields to the notes (app_idle, the DRAW RULE)
 run "FM-1 hold-HOME control map: held stays on the page, a tap goes HOME, the map follows the page, draws call app_idle" sh tests/run_host.sh tests/map.txt
+# P_POLY_N (VOICE +): the POLY/DUAL voice window 1-8; "T expect voices N" counts gated cards (exit 1 on a miss)
+run "FM-1 polyphony P_POLY_N: default 5, then 8 and 1, gated-voice counts under a 10-note cluster" sh tests/run_host.sh tests/poly.txt
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
 # the 96-byte / 3-sector / DOG5 program store (the FM-1 and SMK-37 host binaries from run_host.sh above):
 # 99 distinct patches round-trip byte-exact across a power cycle, one save touches only its sector, an old

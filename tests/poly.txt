@@ -1,0 +1,26 @@
+# P_POLY_N (VOICE +): the POLY/DUAL voice window 1-8, default 5. First the voice counts under a 10-note cluster in
+# POLY ("T expect voices N" = N cards gated on, the run exits 1 on a miss), then three VOICE + page shots 5 -> 8 -> 1.
+# nav: GLO cycles GLOBAL (16) -> VOICE (17) -> VOICE + (18); FM-1 KNOB 1 = encoder 2.
+3000 param 38 0           # POLY mode (leaves P_POLY_N at the loaded default)
+3200 keys 0x55555
+3700 expect voices 5      # default P_POLY_N = 5: five of the ten cluster notes sound
+3900 keys 0
+4200 param 63 8
+4400 keys 0x55555
+4900 expect voices 8      # window 8: all eight cards
+5100 keys 0
+5400 param 63 1
+5600 keys 0x55555
+6100 expect voices 1      # window 1: one card, the rest stolen
+6300 keys 0
+6600 midi 0xC0 0          # reload program 1: restores the stored default (5) for the page shots
+6900 btn 7
+7100 btn 7
+7300 btn 7
+7500 expect page 18
+7600 shot                 # VOICE +: POLY at the default 5
+7900 enc 2 3
+8200 shot                 # turned up to 8
+8500 enc 2 -7
+8800 shot                 # turned down to 1
+9100 end

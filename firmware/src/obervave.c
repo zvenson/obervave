@@ -118,7 +118,7 @@ static void cc_map_init(void)
 
 static void set_param(uint32_t p, int32_t v)
 {
-    v = clampi(v, 0, PDEF[p].max);
+    v = clampi(v, p == P_POLY_N ? 1 : 0, PDEF[p].max);   /* POLY is 1-8: the knob never shows 0 voices */
     if (live.v[p] == v) return;
     live.v[p] = (uint8_t)v;
     edited = 1;
@@ -348,6 +348,8 @@ static void draw_hints(void)
 
 #ifdef OBV_HOST
 static uint32_t host_page_now(void) { return page; }   /* (tests/host.c: "T expect page N") */
+static void host_set_param(uint32_t p, int32_t v) { set_param(p, v); }   /* (tests/host.c: "T param P V") */
+static uint32_t host_voices_on(void) { uint32_t v, n = 0; for (v = 0; v < NV; v++) n += vc[v].gate; return n; }   /* ("T expect voices N") */
 static uint32_t host_map_idle_calls(void);
 #endif
 static uint8_t fam_last[NFAM];                  /* each family's last page (set to FAM[].first at start) */

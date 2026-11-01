@@ -19,6 +19,7 @@ enum {
     P_CHO_RATE, P_CHO_DEPTH, P_CHO_MIX,
     P_DLY_TIME, P_DLY_FB, P_DLY_TONE, P_DLY_MIX,
     P_REV_SIZE, P_REV_DAMP, P_REV_PRE, P_REV_MIX,
+    P_POLY_N,                                   /* (appended: the MIDI CC numbers of the above stay) */
     NPARAM
 };
 #define PATCH_NAME 14u                          /* DØG-5: widened 10 -> 14 */
@@ -116,6 +117,7 @@ static const pdef_t PDEF[NPARAM] = {
     [P_REV_DAMP] = {"DAMP", 127, 60, K_NUM, 0},
     [P_REV_PRE] = {"PRE-DLY", 127, 20, K_NUM, 0},
     [P_REV_MIX] = {"MIX", 127, 0, K_NUM, 0},
+    [P_POLY_N] = {"POLY", 8, 5, K_NUM, 0},      /* 1-8, default 5: the POLY/DUAL voice window (obv_engine.h poly_n) */
 };
 
 static const char *const WAVE_NAME[4] = {"OFF", "SAW", "PULSE", "SAW+PLS"};
@@ -132,8 +134,8 @@ static const uint8_t DDIV_NUM[NDDIV] = {1, 1, 1, 3, 1, 3, 2}, DDIV_DEN[NDDIV] = 
 
 /* the pages: four knobs each (-1 = no knob). DØG-5 has 20 (CLAUDE.md §5); a button's pages are contiguous, so a
  * family is "first page + count" (FAM_* below). DRIVE, TAPE and VOICE + have no knobs yet: their parameters
- * (preamp drive, tape degrade, polyphony) arrive with the Psych Chain / P_POLY_N, which change the patch and the
- * DSP -- not this step. */
+ * (preamp drive, tape degrade) arrive with the Psych Chain, which changes the patch and the DSP. VOICE + now
+ * carries P_POLY_N (the polyphony / voice window). */
 typedef struct { const char *title; int8_t p[4]; } page_t;
 enum { PG_PERFORM,                                                              /* HOME */
        PG_OSC1, PG_OSC2, PG_OSCMOD, PG_FILTER, PG_FILTER2,                      /* EDIT */
@@ -162,7 +164,7 @@ static const page_t PAGE[NPAGE] = {
     [PG_ARP] = {"ARP", {P_ARP_MODE, P_ARP_DIV, P_ARP_OCT, P_ARP_GATE}},
     [PG_GLOBAL] = {"GLOBAL", {-1, -1, -1, -1}},   /* tempo, MIDI channel, tune, CPU: globals, drawn by hand */
     [PG_VOICE] = {"VOICE", {P_MODE, P_UNI_N, P_UNI_DET, P_GLIDE}},
-    [PG_VOICE2] = {"VOICE +", {-1, -1, -1, -1}},                                /* polyphony (P_POLY_N): not built */
+    [PG_VOICE2] = {"VOICE +", {P_POLY_N, -1, -1, -1}},                          /* polyphony: the voice window 1-8 */
     [PG_OUTPUT] = {"OUTPUT", {P_VINTAGE, P_SPREAD, P_BEND, P_VOLUME}},
 };
 _Static_assert(NPAGE == 20, "DOG-5 has 20 pages (CLAUDE.md section 5)");

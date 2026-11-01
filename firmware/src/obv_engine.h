@@ -124,18 +124,25 @@ static void voice_start(voice_t *v, uint32_t note, uint32_t vel, int32_t det8, i
     voice_pan(v, pan);
 }
 
-/* round robin over the 8 cards; steal the oldest released, then the oldest */
+/* P_POLY_N (1-8, default 5): the voice window for POLY and DUAL -- how many of the 8 cards those modes may use, so
+ * a chord steals once it fills the window (voice-stealing character, and a worst-case CPU ceiling for POLY playing).
+ * UNISON / MONO keep their own count (P_UNI_N, uni_count), so no existing patch changes. At 8 the window is the
+ * whole bank and allocation is bit-identical to before P_POLY_N existed. (This replaces the old part_cards window
+ * that went with track B.) */
+static uint32_t poly_n(void) { return (uint32_t)clampi(pt.p->v[P_POLY_N], 1, (int32_t)NV); }
+
+/* round robin over the first poly_n cards; steal the oldest released, then the oldest */
 static uint32_t voice_alloc(void)
 {
-    uint32_t i, v, pick = 0, best = 0xFFFFFFFFu;
-    for (i = 0; i < NV; i++) {
-        v = (rr + i) % NV;
+    uint32_t w = poly_n(), i, v, pick = 0, best = 0xFFFFFFFFu;
+    for (i = 0; i < w; i++) {
+        v = (rr + i) % w;
         if (vc[v].ae.stage == E_IDLE) { rr = v + 1u; return v; }
     }
-    for (v = 0; v < NV; v++)
+    for (v = 0; v < w; v++)
         if (!vc[v].gate && vc[v].seq < best) { best = vc[v].seq; pick = v; }
     if (best == 0xFFFFFFFFu)
-        for (v = 0; v < NV; v++)
+        for (v = 0; v < w; v++)
             if (vc[v].seq < best) { best = vc[v].seq; pick = v; }
     rr = pick + 1u;
     return pick;
