@@ -217,10 +217,46 @@ static void seq_auto(uint32_t t, uint32_t i)
         live_p[t].v[a->param] = v;
     }
 }
+/* MIDI clock lock. The clock's tempo alone lets our beat slide off the master's (its 48-frame rounding, the 0.3 % it
+ * must move before it is taken, the jitter): ~0.4 s in 5 minutes. So where the master's quarter (24 clocks from its
+ * START) falls against our beat is measured, and the next quarter of ours is stretched or shortened by part of it, a
+ * PI loop: the proportional half takes the phase back, the integral the tempo's offset. Beat, tracks and arp all read
+ * the one quarter latched on the beat (seq_q), so the tracks stay on the beat while it moves. */
+static uint32_t ext_seen, ext_q0;
+static int32_t ext_err, ext_i;                  /* frames, + = our beat came early */
+static void ext_measure(void)                   /* (each block) a master's quarter began: how far off our beat is */
+{
+    uint32_t q = quarter_len();
+    if (ext_seen == ctl_ext_beats) return;
+    ext_seen = ctl_ext_beats;
+    if (ctl_ext_lock && ctl_ext_quarter) ext_err = seq_beat_cnt < q / 2u ? (int32_t)seq_beat_cnt : (int32_t)seq_beat_cnt - (int32_t)q;
+}
+static void ext_latch(void)                     /* (on our beat) the quarter that starts now */
+{
+    int32_t q = (int32_t)ctl_ext_quarter, c = 0, lim;
+    seq_q = tempo_quarter();
+    if (!q) { ext_err = ext_i = 0; return; }
+    lim = q / 64;
+    if (ctl_ext_quarter != ext_q0) {            /* the tempo measured again: a small step is the measurement's own (its
+                                                 * jitter, 256-frame blocks over 2 s), the quarter goes on as it was;
+                                                 * a big one is a new tempo, its offset new too */
+        int32_t d = (int32_t)ext_q0 - q;
+        ext_i = ext_q0 && d >= -lim && d <= lim ? ext_i + d : 0;
+        ext_q0 = ctl_ext_quarter;
+    }
+    if (ctl_ext_lock) {
+        ext_i = clampi(ext_i + ext_err / 8, -lim, lim);
+        lim = q / 32; c = clampi(ext_i + ext_err / 2, -lim, lim);   /* (at most ~3 % a quarter: no audible lurch) */
+    }
+    ext_err = 0;
+    seq_q = (uint32_t)(q + c);
+}
+
 static void seq_tick(void)
 {
     uint32_t t, q;
     if (!ctl_seq_run) {
+        seq_q = 0;
         if (seq_was) { for (t = 0; t < NTRK; t++) seq_release_t(t); seq_was = 0; }
         seq_take_requests();                    /* (stopped: a pad switches its track at once) */
         return;
@@ -233,7 +269,10 @@ static void seq_tick(void)
         seq_beat_n = 0;
         count_left = ctl_count ? 4u : 0u;
         seq_was = 1;
+        seq_q = ext_q0 = 0; ext_err = ext_i = 0; ext_seen = ctl_ext_beats;   /* (the master's quarters from here) */
     }
+    ext_measure();
+    if (seq_beat_cnt < CTL) ext_latch();
     q = quarter_len();
     if (seq_beat_cnt < CTL) {                   /* a beat (in this block): the PLAY light, the click, the count-in; a downbeat: requests */
         if (ctl_count && !count_left) {         /* counted in: the tracks from the top, now */
@@ -256,6 +295,7 @@ static void seq_tick(void)
             }
             seq_take_requests();
         }
+        TRACE('B', seq_beat_n, eng_t - CTL - seq_beat_cnt);   /* (tests/clock_sync_test.py: the beat's frame) */
         ui_seq_beat++;
         ui_seq_bar_beat = seq_beat_n % BAR_BEATS;
         if (ctl_click || ctl_count) click_start(seq_beat_n % BAR_BEATS == 0u);

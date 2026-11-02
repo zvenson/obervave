@@ -203,7 +203,7 @@ others, the blue look, and the second video. Patches are 80 bytes (`SET_VERSION`
 and the restart worked) with the logo splash; the user still has to report the CPU meter (GLO page) with DARK ARP
 and with all three effects on a big patch, the knobs' feel, the splash. If the render time is over ~4000 us,
 `REV_DIV 2` (half-rate reverb) is the first lever; ask the user before taking any quality away. CUTOFF and RESO slew ~23 ms per block (CC sweeps glide). Open: the
-look's polish, MIDI clock is tempo-following only, the arp steps on 16-frame blocks, the delay time does not follow
+look's polish, the arp steps on 16-frame blocks, the delay time does not follow
 an external clock's tempo changes smoothly, a tempo CC (the video sets it with the knob).
 
 ## Plan (agreed in the first session, 2026-10-12)

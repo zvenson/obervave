@@ -83,6 +83,8 @@ static volatile int32_t ctl_vib;                /* the SMK-37's mod wheel 0..127
 #endif
 static volatile int32_t ctl_tune8;              /* global tune, Q8 semitones */
 static volatile uint32_t ctl_tempo = 120, ctl_ext_quarter;   /* MIDI clock: frames per quarter, 0 = none */
+static volatile uint32_t ctl_ext_lock, ctl_ext_beats;   /* the transport came from the clock's START (its phase is locked
+                                                 * on), and the master's quarters counted since (24 clocks each) */
 static volatile uint32_t ctl_arp_restart, ctl_panic;
 
 /* ISR -> main loop */
@@ -347,11 +349,15 @@ static volatile uint32_t eng_t;                 /* frames the engine has made (t
 /* a quarter in frames. The internal tempo rounded to 48 frames (~1 ms): the beat (counted in blocks of CTL) and every
  * step length (q / 1, 2, 3, 4, 6, 8, 12) come out whole, so the arp, the tracks and the bar stay locked forever (else
  * at 121 BPM the tracks slid off the beat). The tempo is off by at most 0.1 % for it. */
-static uint32_t quarter_len(void)
+static uint32_t tempo_quarter(void)             /* the tempo's quarter: the MIDI clock's, else ours */
 {
     if (ctl_ext_quarter) return ctl_ext_quarter;
     return (60u * FS / (uint32_t)clampi((int32_t)ctl_tempo, 40, 240) + 24u) / 48u * 48u;
 }
+/* the transport's: one quarter latched on each beat (obv_seq.h, with the MIDI clock's phase correction in it), so a
+ * tempo that changes inside a beat cannot put the steps already counted off it; 0 = stopped */
+static uint32_t seq_q;
+static uint32_t quarter_len(void) { return seq_q ? seq_q : tempo_quarter(); }
 
 static void arp_stop_note(uint32_t p)
 {
@@ -748,7 +754,7 @@ static void engine_audio(int32_t *out, uint32_t n)
     uint32_t b, v, i, p, used = 0;
     static int32_t sc_prev;
     static uint32_t sc_i, sc_sub;
-    fx_block(&live, quarter_len());
+    fx_block(&live, tempo_quarter());           /* (the delay: not each beat's phase correction, its tape slew would wobble) */
     vol_q12 = (int32_t)((ctl_cc7 * ctl_cc7) >> 2);
     for (p = 0; p < NPART; p++)
         for (i = 0; i < 2u * n; i++) bus[p][i] = 0;
