@@ -146,7 +146,7 @@ enum { PG_PERFORM,                                                              
        PG_GLOBAL, PG_VOICE, PG_VOICE2, PG_OUTPUT,                               /* GLO */
        NPAGE };
 static const page_t PAGE[NPAGE] = {
-    [PG_PERFORM] = {"PERFORM", {P_CUTOFF, P_RESO, P_FENV_AMT, P_AR}},
+    [PG_PERFORM] = {"HOME", {P_CUTOFF, P_RESO, P_FENV_AMT, P_AR}},
     [PG_OSC1] = {"OSC 1", {P_O1_WAVE, P_O1_PW, P_O1_LVL, P_NOISE}},
     [PG_OSC2] = {"OSC 2", {P_O2_WAVE, P_O2_PW, P_O2_LVL, P_O2_SEMI}},
     [PG_OSCMOD] = {"OSC MOD", {P_SYNC, P_XMOD, P_ENV_O2, P_O2_FINE}},

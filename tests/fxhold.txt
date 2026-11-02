@@ -1,0 +1,5 @@
+# FX held = the effects' mixes; its hint line names what the four knobs are (BBD / SPRING now, not DELAY / REVERB)
+3000 btndown 2
+3500 shot
+3700 btnup 2
+4200 end

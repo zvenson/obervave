@@ -343,7 +343,7 @@ static void draw_hints(void)
     if (key == hints_key) return;
     hints_key = key;
     if (toasting) ui_hints(toast, "", C_AMBER);
-    else if (layer == L_FX) ui_hints("KNOBS: CHORUS DELAY REVERB", "AND THE DELAY'S TIME", C_AMBER);
+    else if (layer == L_FX) ui_hints("KNOBS: CHORUS BBD SPRING", "AND THE BBD TIME", C_AMBER);
 }
 
 #ifdef OBV_HOST
@@ -377,13 +377,13 @@ static uint32_t host_idle_n, host_map_idle;     /* tests: app_idle calls that go
 #endif
 static void draw_map(void)
 {
-    static const struct { uint8_t fam; const char *name; } PB[MAP_ROWS] = {
-        {FAM_EDIT, "EDIT"}, {FAM_ENV, "ENV"}, {FAM_LFO, "LFO"}, {FAM_FX, "FX"}, {FAM_GLO, "GLO"}, {FAM_ARP, "ARP"}};
-    static const map_row_t R[MAP_ROWS] = {
-        {"HOME", "GO HOME"}, {"SAVE", "TAP x2"}, {"OCT-/+", "OCTAVE"}, {"SELECT", "TEMPO"}, {NM_PRESETS, "SOUND"}, {"FX HELD", "MIXES"}};
-    map_row_t L[MAP_ROWS];
+    /* the label printed on the panel, its dog name (CLAUDE.md section 5; the FX button has none in the brief) */
+    static const struct { uint8_t fam; const char *hw, *dog; } PB[6] = {
+        {FAM_EDIT, "EDIT", "DIG"}, {FAM_ENV, "ENV", "HOWL"}, {FAM_LFO, "LFO", "PANT"},
+        {FAM_FX, "FX", ""}, {FAM_GLO, "GLO", "FLEAS"}, {FAM_ARP, "ARP", "ZOOMIES"}};
+    map_row_t R[MAP_ROWS];
     knob_view_t k[4];
-    int32_t i, hi_l = -1, hi_r = page == PG_PERFORM ? 0 : -1;
+    int32_t i, hi = page == PG_PERFORM ? 0 : -1;
     uint32_t none = 1;
 #ifdef OBV_HOST
     uint32_t idle0 = host_idle_n;
@@ -397,12 +397,17 @@ static void draw_map(void)
         } else if (p >= 0) { k[i].label = PDEF[p].name; k[i].present = 1; }
         none &= !k[i].present;
     }
-    for (i = 0; i < MAP_ROWS; i++) {
-        L[i].name = PB[i].name;
-        L[i].what = PB[i].fam == FAM_ARP && page == PG_ARP ? "HOLD" : PAGE[cycle_fam(PB[i].fam)].title;
-        if (in_fam(PB[i].fam)) hi_l = i;
+    R[0].hw = "HOME"; R[0].dog = "HOME"; R[0].what = "TAP: HOME";
+    for (i = 0; i < 6; i++) {                   /* the page buttons: where a press goes NOW (the live part) */
+        R[1 + i].hw = PB[i].hw; R[1 + i].dog = PB[i].dog;
+        R[1 + i].what = PB[i].fam == FAM_ARP && page == PG_ARP ? "HOLD" : PAGE[cycle_fam(PB[i].fam)].title;
+        if (in_fam(PB[i].fam)) hi = 1 + i;
     }
-    ui_map(PAGE[page].title, k, none ? "NO KNOBS HERE YET" : 0, L, R, hi_l, hi_r, "LET GO: STAY ON THIS PAGE");
+    R[7].hw = "SAVE"; R[7].dog = "BURY"; R[7].what = "TAP TWICE";
+    R[8].hw = "SELECT"; R[8].dog = "FETCH"; R[8].what = "TEMPO";
+    R[9].hw = NM_PRESETS; R[9].dog = "BARKS"; R[9].what = "SOUND";
+    R[10].hw = "OCT-/+"; R[10].dog = ""; R[10].what = "OCTAVE";
+    ui_map(PAGE[page].title, k, none ? "NO KNOBS HERE YET" : 0, R, hi, "FX HELD: MIXES");
 #ifdef OBV_HOST
     host_map_idle = host_idle_n - idle0;
 #endif
