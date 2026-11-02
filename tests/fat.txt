@@ -1,0 +1,29 @@
+# the filter chain: a brass chord (LP24), a unison lead, a high-resonance mono zap, a driven bass; MIDI on channel 1
+3000 midi 0xC0 12 0
+3100 midi 0x90 48 100
+3100 midi 0x90 55 100
+3100 midi 0x90 60 100
+3100 midi 0x90 64 100
+4600 midi 0x80 48 0
+4600 midi 0x80 55 0
+4600 midi 0x80 60 0
+4600 midi 0x80 64 0
+5500 midi 0xC0 3 0
+5600 midi 0x90 62 110
+7000 midi 0x80 62 0
+7800 midi 0xC0 11 0
+7900 midi 0x90 36 120
+9200 midi 0x80 36 0
+9600 midi 0xC0 6 0
+9700 midi 0x90 36 120
+11000 midi 0x80 36 0
+11500 midi 0xC0 1 0
+11600 midi 0x90 50 100
+11600 midi 0x90 53 100
+11600 midi 0x90 57 100
+11600 midi 0x90 62 100
+14000 midi 0x80 50 0
+14000 midi 0x80 53 0
+14000 midi 0x80 57 0
+14000 midi 0x80 62 0
+15000 end

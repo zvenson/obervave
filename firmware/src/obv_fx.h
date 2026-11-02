@@ -174,7 +174,117 @@ static inline void rev_tick(int32_t in)
     rv_yr = (b * 19661) >> 15;
 }
 
-static void fx_process(int32_t *out, uint32_t n)
+/* the three effects side by side, each fed by its send bus; out gets their returns, MIX = the return's level.
+ * DRIVE, the 4th send: the tracks' drive sends distorted, its return beside the dry sound (parallel: the dry keeps its
+ * punch). Types OVERDRIVE (soft), DIST (harder, uneven), FUZZ (square), CRUSH (fewer bits, held samples); TONE a
+ * low-pass after it, MIX the return. Fixed point (VIBE's is float): tanh by the softclip table */
+enum { DV_OVERDRIVE, DV_DIST, DV_FUZZ, DV_CRUSH, NDV };
+static volatile uint8_t ctl_dv_type, ctl_dv_amt = 60, ctl_dv_tone = 90, ctl_dv_mix = 127;
+static int32_t dv_lp, dv_hold;                  /* Q15 */
+static uint32_t dv_n;
+static void drive_process(int32_t *out, const int32_t *vs, uint32_t n)
+{
+    uint32_t i, ty = ctl_dv_type % NDV, amt = ctl_dv_amt;
+    int32_t pre = 256 + (int32_t)(24u * 256u * amt / 127u);   /* Q8: 1 .. 25 */
+    int32_t k = 1311 + (int32_t)(31457u * ctl_dv_tone * ctl_dv_tone / 16129u);   /* Q15: 0.04 .. 1 */
+    int32_t ret = (int32_t)(ctl_dv_mix * 4000u / 127u);   /* (MIX full: the return about as loud as the dry sound) */
+    if (!ctl_dv_mix) return;
+    for (i = 0; i < n; i++) {
+        int32_t x = (vs[i] * pre) >> 9, y;      /* softclip(x) = tanh(the drive's x), Q15 */
+        if (ty == DV_OVERDRIVE) y = softclip(x);
+        else if (ty == DV_DIST) y = x > 0 ? softclip(x * 8 / 5) : (softclip(x * 7 / 10) * 4) / 5;
+        else if (ty == DV_FUZZ) y = clampi(x * 40, -32767, 32767);   /* (20 x the drive's x, square beyond 1/20) */
+        else {                                  /* CRUSH: 16 steps, a sample held for 2..12 */
+            if (!dv_n--) { dv_n = 2u + amt * 10u / 127u; dv_hold = softclip(x) * 8 / 32768 * 4096; }
+            y = dv_hold;
+        }
+        dv_lp += ((y - dv_lp) * k) >> 15;
+        {
+            int32_t v = (dv_lp * ret + 16384) >> 15;   /* (rounded: the one-pole's -1 it settles on stays silent) */
+            out[2u * i] = sat16(out[2u * i] + v);
+            out[2u * i + 1u] = sat16(out[2u * i + 1u] + v);
+        }
+    }
+}
+
+/* MASTER, the sum after the effects: DJ filter (one knob: below the middle low-pass, above high-pass), drive,
+ * compressor, volume, and a soft limiter above -2 dB that never lets it clip. Fixed point: the compressor's gain in
+ * log2 per control block (its level follower per sample), a line between blocks */
+static volatile uint8_t ctl_m_vol = 100, ctl_m_dj = 64, ctl_m_drive, ctl_m_comp;   /* (main loop writes) volume (100 =
+                                                 * unity), DJ filter (64 off, below LP, above HP), drive, compressor */
+static volatile uint32_t ui_out_peak;           /* the output's peak, for the MASTER row's meter (the UI takes it) */
+static svf_coef_t m_c;
+static svf_state_t m_fl, m_fr;
+static int32_t m_dj_was = 0x7FFF, m_env, m_g = 1 << 14;   /* m_env: the level follower Q23; m_g: the gain now, Q14 */
+
+static int32_t log2_q16(uint32_t x)             /* x > 0 -> log2(x) in Q16 (+-0.01) */
+{
+    int32_t e = 31, f;
+    if (!x) return -(32 << 16);
+    while (!(x >> e)) e--;
+    f = (int32_t)(e >= 16 ? x >> (e - 16) : x << (16 - e)) - 65536;   /* the mantissa - 1, Q16 */
+    return (e << 16) + f + (int32_t)(((int64_t)f * (65536 - f) * 22713) >> 32);   /* log2(1+f) ~ f + 0.3466 f (1-f) */
+}
+static int32_t exp2_q14(int32_t l)              /* 2^(l / 65536) in Q14, l within +-14 octaves */
+{
+    int32_t e = l >> 16, f = l & 0xFFFF, m;
+    m = 16384 + ((f * 10756) >> 16) + (int32_t)(((int64_t)f * f * 5628) >> 32);   /* 2^f ~ 1 + 0.6565 f + 0.3435 f^2 */
+    return e >= 0 ? (e > 14 ? 0x7FFFFFFF : m << e) : (e < -14 ? 0 : m >> -e);
+}
+
+static void master_process(int32_t *out, uint32_t n)
+{
+    int32_t dj = (int32_t)ctl_m_dj - 64, mode = dj <= -2 ? 1 : dj >= 2 ? 2 : 0, ad = dj < 0 ? -dj : dj;
+    uint32_t d = ctl_m_drive, cm = ctl_m_comp, i, b, pk = 0;
+    int32_t pre = 256 + (int32_t)(8u * 256u * d / 127u), post = (int32_t)(4096u * (127u + d) * 256u / (127u * (uint32_t)pre));
+    int32_t vol = (int32_t)(ctl_m_vol * ctl_m_vol * 4096u / 10000u);   /* Q12, 100 = unity, the square law */
+    if (dj != m_dj_was) {                       /* LP 18 kHz .. 60 Hz, HP 20 Hz .. 6 kHz, Q 1.1 */
+        svf_coef(&m_c, mode == 1 ? 34099 - ad * 395 : 3968 + ad * 395, 3724);
+        if (!mode || (m_dj_was <= -2) != (dj <= -2)) m_fl.ic1 = m_fl.ic2 = m_fr.ic1 = m_fr.ic2 = 0;
+        m_dj_was = dj;
+    }
+    for (b = 0; b < n; b += CTL) {
+        int32_t g0 = m_g, g1 = 1 << 14;
+        if (cm) {                               /* the gain at this block's end: from the level so far */
+            int32_t ex = (int32_t)(65536u * 5u * cm / (127u + 5u * cm));   /* Q16: the ratio's 1 - 1/r, 0 .. 0.83 */
+            int32_t thr = -(int32_t)((508u + 20u * cm) * 857u / 10u);      /* log2 Q16 of -4 .. -24 dB */
+            int32_t lv = log2_q16((uint32_t)(m_env >> 8) + 1u) - (15 << 16);   /* the level, log2 of full scale */
+            int32_t gl = (int32_t)(((int64_t)(-thr) * ex * 29491) >> 32);  /* make-up: (1/thr)^(0.45 ex) */
+            if (lv > thr) gl -= (int32_t)(((int64_t)(lv - thr) * ex) >> 16);
+            g1 = exp2_q14(gl);
+        }
+        m_g = g1;
+        for (i = b; i < b + CTL && i < n; i++) {
+            int32_t l = out[2u * i], r = out[2u * i + 1u], g = g0 + (((g1 - g0) * (int32_t)(i - b)) >> 4);
+            uint32_t al, ar;
+            if (mode && !(l | r) && (uint32_t)(m_fl.ic1 + 8) < 16u && (uint32_t)(m_fl.ic2 + 8) < 16u
+                && (uint32_t)(m_fr.ic1 + 8) < 16u && (uint32_t)(m_fr.ic2 + 8) < 16u)
+                m_fl.ic1 = m_fl.ic2 = m_fr.ic1 = m_fr.ic2 = 0;   /* (silence stays silence: no rounding hum of the states) */
+            else if (mode) {                    /* (at half the level: the filter's band-pass state stays linear) */
+                int32_t lp, bp, hp;
+                svf_step(&m_c, &m_fl, l >> 1, &lp, &bp, &hp); l = (mode == 1 ? lp : hp) << 1;
+                svf_step(&m_c, &m_fr, r >> 1, &lp, &bp, &hp); r = (mode == 1 ? lp : hp) << 1;
+            }
+            if (d) { l = (softclip((l * pre) >> 9) * post) >> 12; r = (softclip((r * pre) >> 9) * post) >> 12; }
+            if (cm) {                           /* the level follower: 3 ms up, 150 ms down */
+                int32_t p = (l < 0 ? -l : l) > (r < 0 ? -r : r) ? (l < 0 ? -l : l) : (r < 0 ? -r : r);
+                int32_t e = clampi(p, 0, 65535) << 8;
+                m_env += e > m_env ? (int32_t)(((int64_t)(e - m_env) * 495) >> 16) : (int32_t)(((int64_t)(e - m_env) * 10) >> 16);
+                l = (int32_t)(((int64_t)l * g) >> 14); r = (int32_t)(((int64_t)r * g) >> 14);
+            }
+            l = (l * vol) >> 12; r = (r * vol) >> 12;
+            al = (uint32_t)(l < 0 ? -l : l); ar = (uint32_t)(r < 0 ? -r : r);
+            if (al > 26214u) { int32_t y = 26214 + softclip(((int32_t)al - 26214) * 5 / 2) / 5; l = l < 0 ? -y : y; }
+            if (ar > 26214u) { int32_t y = 26214 + softclip(((int32_t)ar - 26214) * 5 / 2) / 5; r = r < 0 ? -y : y; }
+            if (al > pk) pk = al;
+            if (ar > pk) pk = ar;
+            out[2u * i] = l; out[2u * i + 1u] = r;
+        }
+    }
+    if (pk > ui_out_peak) ui_out_peak = pk;
+}
+
+static void fx_process(int32_t *out, const int32_t *cs, const int32_t *ds, const int32_t *rs, uint32_t n)
 {
     uint32_t i, do_dly = dly_active != 0, do_rev = rev_active != 0;
     int32_t cm = cho_mix, dm = dly_mix, rm = rev_mix;
@@ -183,9 +293,9 @@ static void fx_process(int32_t *out, uint32_t n)
         if (cm) {                               /* two taps a quarter turn apart on one line, around 12 ms */
             int32_t bl = (529 << 16) + tri_q(cho_ph) * cho_depth_k, br = (529 << 16) + tri_q(cho_ph + 0x40000000u) * cho_depth_k;
             cho_ph += cho_inc;
-            line_write(&cho, (l + r) >> 1);
-            l += ((line_read_q16_h(&cho, bl) - l) * cm) >> 8;
-            r += ((line_read_q16_h(&cho, br) - r) * cm) >> 8;
+            line_write(&cho, cs[i]);
+            l += (line_read_q16_h(&cho, bl) * cm) >> 8;
+            r += (line_read_q16_h(&cho, br) * cm) >> 8;
         }
         if (do_dly) {                           /* ping-pong: the input enters left, the feedback crosses */
             int32_t wl, wr;
@@ -195,14 +305,14 @@ static void fx_process(int32_t *out, uint32_t n)
             wr = line_read_q16(&dr, dly_cur);
             dly_lpl += ((wr - dly_lpl) * dly_tone_k) >> 8;
             dly_lpr += ((wl - dly_lpr) * dly_tone_k) >> 8;
-            line_write(&dl, ((l + r) >> 1) + ((dly_lpl * dly_fb) >> 15));
+            line_write(&dl, ds[i] + ((dly_lpl * dly_fb) >> 15));
             line_write(&dr, (dly_lpr * dly_fb) >> 15);
             l += (wl * dm) >> 8;
             r += (wr * dm) >> 8;
         }
         if (do_rev) {
 #if REV_DIV == 2u                               /* half rate: a pair in, the output interpolated between ticks */
-            int32_t pl = rv_yl, pr = rv_yr, din = l + r;
+            int32_t pl = rv_yl, pr = rv_yr, din = rs[i] * 2;
             if (!(fx_odd ^= 1u)) {
                 rev_tick((rv_hold + din) >> 2);
                 l += (((pl + rv_yl) >> 1) * rm) >> 8;
@@ -213,7 +323,7 @@ static void fx_process(int32_t *out, uint32_t n)
             }
             rv_hold = din;
 #else
-            rev_tick((l + r) >> 1);
+            rev_tick(rs[i]);
             l += (rv_yl * rm) >> 8;
             r += (rv_yr * rm) >> 8;
 #endif

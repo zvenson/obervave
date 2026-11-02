@@ -28,6 +28,7 @@ int memcmp(const void *a, const void *b, size_t n)
     return 0;
 }
 #define printf(...) ((void)0)                   /* (host.c's log lines: nowhere to go) */
+static char *getenv(const char *n) { (void)n; return 0; }   /* (host.c's test switches: none in the browser) */
 
 #include "../../firmware/src/obervave.c"
 
@@ -169,18 +170,19 @@ EXPORT uint32_t sim_leds_buttons(void) { return (uint32_t)(host_leds & 0x3FFFu);
 EXPORT uint32_t sim_leds_keys(void) { return (uint32_t)(host_leds >> 14) & 0x7FFFFFFu; }  /* bit k: key k lit */
 EXPORT uint32_t sim_glow_keys(void) { return (uint32_t)(host_glow >> 14) & 0x7FFFFFFu; }  /* the dim layer */
 EXPORT uint32_t sim_page(void) { return page; }
-EXPORT uint32_t sim_prog(void) { return prog; }
+EXPORT uint32_t sim_prog(void) { return trk_prog[0]; }   /* (track A's program) */
 
-/* ---- storage: the settings sector (programs, globals) and the 8 pattern sectors, in RAM. The page may keep them
- * (localStorage) and put them back before sim_init: blob 0 = settings, 1..8 = patterns 1..8, byte 0 = 1 if used */
-EXPORT uint32_t sim_blob_size(void) { return SETTINGS_MAX + 4u; }
-EXPORT uint8_t *sim_blob(uint32_t i) { return i == 0u ? host_store : i <= NBLOB ? host_blob[i - 1u] : 0; }
+/* ---- storage: the settings sector (globals) and the 8 pattern slots (3.0: four tracks with their sounds), in RAM. The
+ * page may keep them (localStorage) and put them back before sim_init: blob 0 = settings, 1..8 = patterns 1..8, byte
+ * 0 = 1 if used, all HOST_BLOB_SZ long */
+EXPORT uint32_t sim_blob_size(void) { return HOST_BLOB_SZ; }
+EXPORT uint8_t *sim_blob(uint32_t i) { return i == 0u ? host_store : i <= NBLOB ? host_slot[i - 1u] : 0; }
 EXPORT uint32_t sim_store_hash(void)            /* changes when a save happens */
 {
     uint32_t h = 2166136261u, i, b;
     for (b = 0; b <= NBLOB; b++) {
         const uint8_t *p = sim_blob(b);
-        for (i = 0; i < SETTINGS_MAX + 4u; i++) h = (h ^ p[i]) * 16777619u;
+        for (i = 0; i < HOST_BLOB_SZ; i++) h = (h ^ p[i]) * 16777619u;
     }
     return h;
 }

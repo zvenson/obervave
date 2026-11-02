@@ -401,6 +401,34 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**3.3.1 (2026-11-02, tag v3.3.1, FM-1_9533):** only the UC25HQ80 flash (JEDEC 0xB36014, newer FM-1s from AliExpress) in
+`FL_JEDEC_OK` (hal/fm1_flash_map.h) beside the Puya 0x856014 – app, recovery, update loader; on it 3.3 saved to RAM only and
+refused updates (Paul Nederhoed). The user: fix OberVave, not sloopDX. Not tested on that chip before the release (Paul cannot
+flash a file himself: the hub's installer is his way). The SMK-37 packages stay 3.3-beta.
+
+**3.3 (2026-10-31, tag v3.3, FM-1_9533, "Oberheim wäre massiver"; heard by the user on the FM-1 and released the same day, the CI's attested packages in docs/firmware (FM-1) and docs/firmware/smk37 (3.3-beta, tag smk37-v3.3-beta); the native VIBE 3.3 carries the same engine, vibe-sdk 03010dc):** LP24 is a
+real four-pole ladder (`lad_coef` / `lad_step` in obv_dsp.h: four TPT one-poles, the resonance fed back around all four,
+zero-delay linear solve, a tanh on the loop's input, input gain 1 + k/2 so the bass stays; was two cascaded SVFs with the
+resonance on the first). The mixer's hard clamp and the post-filter clamp are gone: `sat_in` (tanh, unity below ~30000,
+DRIVE's gain 1..16 in front of it, always on) and `sat_knee` (linear to 32768, tanh to 65535). The vintage walk moves the
+cutoff too (~1/4 semitone at the default). Levels within ~1 dB of before (tests/fat.txt + the ana script in the
+session: brass -6 dBFS peak), a full-resonance cutoff sweep stays bounded (tests/fat_sweep.txt). Host cost +7 %
+(1653 instr/sample on fat.txt, was 1544). `TANH_Q15` is tanh(x/32768), unity slope (its old comment said x2).
+Not done yet: oversampling, the SVF's integrator saturation, retuning the brass patches.
+
+**3.0.1** (2026-10-23, tag v3.0.1: identity FM-1_95XY from now on, FM-1_9530, its own; 3.0 (tag v3.0) reported FM-1_950, shared with CS-1, OPN-1, FMEL-1, so the hub could not tell them apart; the CI's attested package in docs/firmware; the SMK-37's 3.0.1 packages (SMK-37 Pro / Elite / MKE-P37_9530, the CI's) in docs/firmware/smk37 too, tag smk37-v3.0.1-beta, the user's go 2026-10-23): the VIBE edition
+(~/VibeFMmk1/vibe-sdk/firmware/obervave, OberVave 3.0 native; the FM-1-code 2.0 edition is in that repo's tag
+vor-aufraeumen-2026-10-22) back on the FM-1 and the SMK-37: 4 tracks A-D on the 8 voices (MONO/UNISON groups pick their
+cards: group_pick), mixer (level, pan, sends chorus/delay/reverb/drive, mute/solo, meters), DRIVE and MASTER (DJ
+filter, drive, compressor, limiter) in fixed point, tracks start/stop on the bar, every pattern keeps its sounds and
+mix (psnd_t behind the pattern in a 4-sector slot: FM-1 0x99000.., SMK 0xC2000.. in FL_SMP; 1.5's patterns and
+settings convert at boot, the old ones stay), 3.0's recording (quantise per track, nudge, legato, arp takes, knob
+lanes), SYNC AUTO/INTERNAL. Panel: ALGORITHM track, PRESETS its sound, SELECT bar (STEPS) / next pattern (sequencer,
+MIXER) / tempo, SELECT held = STEP+ (GLOBAL: SYNC), HOME again = MIXER and its rows, GLO held = keys 1-4 start/stop
+(REC: record), 5-8 mute, 9-12 solo, G5 tap; SAVE in the sequencer asks. Host worst case ~2460 instr/sample. Tests:
+tests/v3_*.txt, OBV_V15=1 simulates a 1.5 store. Shine On got the same (its own CLAUDE.md).
+
+
 Released: **1.5.3** (2026-10-19, FM-1_955, tag v1.5.3: the update loader's screen, `firmware/loader/ldr_screen.c` (the hub's look; Skiff's idea, illuminus5): name, status, 20 segments with a running light while it waits, the percent while it writes, thefirmwarehub.com; FM-1 only, the SMK-37's loader stays dark; tested on the user's FM-1, two installs) after **1.5.2** (2026-10-19, FM-1_955, tag v1.5.2 (v1.5.1 = 1.5 rebuilt by the CI): the TRS MIDI IN on (FELUCCA_UART on the FM-1 board, sloopDX's
 midi_uart.c polled at 2 kHz in TIMER5; users said MIDI from external gear did not work), the keys send on the set
 channel (`MIDI_OUT_CH`); installed on the user's FM-1, USB-MIDI and a second update fine, the jack itself not tried here;
@@ -502,7 +530,7 @@ Priorities from the user: **the audio engine first, the look second**. Max depth
 ### Controls
 
 - PRESETS = program, ALGORITHM = CUTOFF (always), SELECT = page scroll, KNOB 1-4 = the page's four parameters.
-- HOME = PERFORM (RESO, F.ENV AMT, A.RELEASE, MOD DEPTH). EDIT cycles OSC1 / OSC2 / OSC MOD / FILTER / FILTER +,
+- HOME = PERFORM (RESO, F.ENV AMT, A.RELEASE, MOD DEPTH). EDIT cycles OSC1 / OSC2 / VOICE (since 3.3, as native 3.2) / OSC MOD / FILTER / FILTER +,
   ENV cycles FILTER ENV / AMP ENV, LFO cycles LFO / LFO DEST / LFO +, FX cycles CHORUS / DELAY / REVERB,
   ARP = arp on/off + its page, GLO cycles GLOBAL (TEMPO, MIDI CH, TUNE, CPU meter) / VOICE (mode, unison, glide) /
   OUTPUT (vintage, spread, bend, volume).

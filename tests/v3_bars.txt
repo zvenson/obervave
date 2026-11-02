@@ -1,0 +1,13 @@
+# OberVave 3.0, TRACKS: CUTOFF on knob 1, LENGTH on knob 3; a track of 4 bars shows which bar plays (2/4) and a line
+# under its steps filled up to there; STEPS on another bar says PLAYS n
+3000 btn 11
+3200 enc 4 2
+3400 enc 2 -5
+3600 shot
+3800 btn 12
+6500 shot
+6700 btn 11
+6900 shot
+9800 shot
+10300 shot
+11000 end

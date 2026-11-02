@@ -162,9 +162,43 @@ static const uint8_t PF_DREAM_ARP[] = {P_ARP_MODE, A_PLAY, P_ARP_DIV, D_8, P_ARP
     P_AA, 15, P_AR, 90, P_SPREAD, 120, P_CHO_MIX, 55, P_DLY_TIME, DD_4D, P_DLY_FB, 60, P_DLY_TONE, 35, P_DLY_MIX, 50,
     P_REV_SIZE, 120, P_REV_MIX, 60, X};
 static const uint8_t PF_INIT[] = {X};
+/* 65 (VIBE): a kick – osc 2 an octave down, its pitch thrown 2 octaves down by the filter envelope (ENV>O2), the
+ * 24 dB filter nearly shut, a short punch; play it low (C1-C2) */
+static const uint8_t PF_KICK[] = {P_MODE, M_MONO, P_O1_WAVE, W_OFF, P_O2_WAVE, W_PLS, P_O2_PW, 64, P_O2_LVL, 127, P_O2_SEMI, 12,
+    P_O2_FINE, 64, P_ENV_O2, 127, P_NOISE, 6, P_CUTOFF, 40, P_RESO, 8, P_FENV_AMT, 100, P_KEYTRK, 127, P_FTYPE, F_LP24,
+    P_FA, 0, P_FD, 58, P_FS, 0, P_FR, 58, P_AA, 0, P_AD, 84, P_AS, 0, P_AR, 82, P_DRIVE, 45, P_VEL_FLT, 30, P_VEL_AMP, 50,
+    P_VINTAGE, 0, P_SPREAD, 0, P_VOLUME, 127, X};
+/* 66 (VIBE): a snare – noise through a bright low-pass, a body around 200 Hz (at C3) whose pitch drops, short */
+static const uint8_t PF_SNARE[] = {P_O1_WAVE, W_OFF, P_O2_WAVE, W_PLS, P_O2_PW, 64, P_O2_LVL, 85, P_O2_SEMI, 31, P_ENV_O2, 100,
+    P_NOISE, 115, P_FTYPE, F_LP12, P_CUTOFF, 96, P_RESO, 10, P_FENV_AMT, 92, P_KEYTRK, 64, P_FA, 0, P_FD, 50, P_FS, 0,
+    P_AA, 0, P_AD, 75, P_AS, 0, P_AR, 72, P_DRIVE, 70, P_VEL_FLT, 50, P_VEL_AMP, 70, P_VINTAGE, 0, P_SPREAD, 0,
+    P_VOLUME, 127, P_REV_SIZE, 60, P_REV_MIX, 18, X};
+/* 67 (VIBE): a closed hi-hat – bright high-passed noise, very short (higher keys: brighter) */
+static const uint8_t PF_HIHAT[] = {P_O1_WAVE, W_OFF, P_O2_WAVE, W_OFF, P_NOISE, 127, P_FTYPE, F_HP12, P_CUTOFF, 100, P_RESO, 25, P_DRIVE, 60,
+    P_FENV_AMT, 64, P_KEYTRK, 40, P_AA, 0, P_AD, 58, P_AS, 0, P_AR, 56, P_VEL_AMP, 80, P_VINTAGE, 0, P_SPREAD, 0, P_VOLUME, 127, X};
+/* 68 (VIBE): a clap – band-passed noise chopped by a fast square LFO (the flutter), restarted with every hit */
+static const uint8_t PF_CLAP[] = {P_O1_WAVE, W_OFF, P_O2_WAVE, W_OFF, P_NOISE, 127, P_FTYPE, F_LP12, P_CUTOFF, 98, P_RESO, 25, P_DRIVE, 80,
+    P_FENV_AMT, 64, P_KEYTRK, 30, P_AA, 0, P_AD, 78, P_AS, 0, P_AR, 76, P_LFO_SHAPE, L_SQR, P_LFO_RATE, 122,
+    P_LFO_PHASE, LP_SYNC, P_LFO_AMP, 110, P_VEL_AMP, 70, P_VINTAGE, 0, P_SPREAD, 0, P_VOLUME, 127, P_REV_SIZE, 70, P_REV_MIX, 25, X};
+/* 69 (VIBE): an electric piano in the Rhodes manner – a warm low-passed fundamental, a bright tine two octaves up
+ * with a touch of cross-mod for the bark, played harder = brighter and louder; tremolo across the stereo, chorus */
+static const uint8_t PF_EPIANO[] = {P_O1_WAVE, W_PLS, P_O1_PW, 64, P_O1_LVL, 120, P_O2_WAVE, W_SAW, P_O2_SEMI, 48, P_O2_LVL, 38,
+    P_XMOD, 28, P_FTYPE, F_LP24, P_CUTOFF, 52, P_RESO, 5, P_FENV_AMT, 100, P_KEYTRK, 100, P_FA, 0, P_FD, 72, P_FS, 20,
+    P_FR, 70, P_AA, 0, P_AD, 102, P_AS, 18, P_AR, 80, P_VEL_FLT, 110, P_VEL_AMP, 100, P_LFO_SHAPE, L_TRI, P_LFO_RATE, 90,
+    P_LFO_PHASE, LP_SPREAD, P_LFO_AMP, 22, P_VINTAGE, 25, P_SPREAD, 90, P_CHO_MIX, 40, P_CHO_RATE, 30, P_CHO_DEPTH, 45,
+    P_REV_SIZE, 85, P_REV_MIX, 22, X};
+/* 70 (VIBE): a Wurlitzer-ish piano – a reedy narrow pulse with an octave above, a little drive for the growl when
+ * played hard, a quicker tremolo */
+static const uint8_t PF_WURLI[] = {P_O1_WAVE, W_PLS, P_O1_PW, 38, P_O2_WAVE, W_PLS, P_O2_PW, 50, P_O2_SEMI, 36, P_O2_LVL, 48,
+    P_FTYPE, F_LP12, P_CUTOFF, 50, P_RESO, 15, P_FENV_AMT, 100, P_KEYTRK, 90, P_FA, 0, P_FD, 66, P_FS, 22, P_FR, 60,
+    P_AA, 1, P_AD, 94, P_AS, 30, P_AR, 62, P_DRIVE, 35, P_VEL_FLT, 100, P_VEL_AMP, 90, P_LFO_SHAPE, L_TRI, P_LFO_RATE, 96,
+    P_LFO_PHASE, LP_FREE, P_LFO_AMP, 30, P_VINTAGE, 30, P_SPREAD, 60, P_REV_SIZE, 75, P_REV_MIX, 20, X};
 #undef X
 
-static const factory_t FACT_INIT = {"INIT", PF_INIT};   /* 65-99 */
+static const factory_t FACT_INIT = {"INIT", PF_INIT};   /* 71-99 */
+static const factory_t FACT_VIBE[] = {                  /* 65-70 (VIBE): drums and keys */
+    {"KICK", PF_KICK}, {"SNARE", PF_SNARE}, {"HIHAT", PF_HIHAT}, {"CLAP", PF_CLAP}, {"E-PIANO", PF_EPIANO}, {"WURLI", PF_WURLI}};
+#define NVIBE (sizeof FACT_VIBE / sizeof FACT_VIBE[0])
 static const factory_t FACTORY[NFACT] = {
     {"DARK ARP", PF_DARK_ARP}, {"POLY BRASS", PF_POLY_BRASS}, {"SYNC LEAD", PF_SYNC_LEAD}, {"UNISON LD", PF_UNISON_LEAD},
     {"PWM STRING", PF_PWM_STRINGS}, {"BELL XMOD", PF_BELL_XMOD}, {"FAT BASS", PF_FAT_BASS}, {"ARP SEQ", PF_ARP_SEQ},

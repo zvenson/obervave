@@ -10,11 +10,11 @@ bend and add vibrato, and the 37 keys play with velocity.
 
 | Your keyboard | Package | Identity |
 | --- | --- | --- |
-| SMK-37 Pro, Starrykey 37 Play | `obervave-<version>-smk37.fwsc` | `SMK-37 Pro_95N` |
-| SMK-37 Elite | `obervave-<version>-smk37-elite.fwsc` | `SMK-37 Elite_95N` |
-| MKE-P37 | `obervave-<version>-smk37-mke.fwsc` | `MKE-P37_95N` |
+| SMK-37 Pro, Starrykey 37 Play | `obervave-<version>-smk37.fwsc` | `SMK-37 Pro_95XY` |
+| SMK-37 Elite | `obervave-<version>-smk37-elite.fwsc` | `SMK-37 Elite_95XY` |
+| MKE-P37 | `obervave-<version>-smk37-mke.fwsc` | `MKE-P37_95XY` |
 
-N is the minor version, as on the FM-1 (`FM-1_95N`). Each package reports its own model's name, so M-Vave's own
+XY is the version X.Y, as on the FM-1 (`FM-1_95XY`, 3.3: `_9533`; before 3.0.1 it was `_95N`, the minor version only). Each package reports its own model's name, so M-Vave's own
 updater still accepts that model's factory firmware afterwards. The installer refuses an FM-1 package on an SMK-37
 and an SMK-37 package on an FM-1.
 

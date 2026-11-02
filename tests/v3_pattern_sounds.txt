@@ -1,0 +1,26 @@
+# OberVave 3.0: every pattern keeps its sounds. Pattern 1: notes, A = 03; playing, SELECT (TRACK view) = pattern 2 on
+# the bar, A = 08 there; back to 1 (A 03 again on the downbeat); stopped: 2 again (A 08)
+3000 btn 11
+3100 btn 11
+3200 keys 0x1
+3300 keys 0
+3400 keys 0x10
+3500 keys 0
+3600 keys 0x80
+3700 keys 0
+3800 enc 6 2
+4000 btn 11
+4020 btn 11
+4040 btn 11
+4100 btn 12
+5000 enc 0 1
+5200 shot
+7200 shot
+7400 enc 6 5
+7600 shot
+8000 enc 0 -1
+10200 shot
+11000 btn 12
+13000 enc 0 1
+13300 shot
+15000 end

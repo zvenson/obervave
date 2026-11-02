@@ -109,7 +109,7 @@ check(ex.sim_leds_buttons() !== 0, `button LEDs (0x${ex.sim_leds_buttons().toStr
 // storage: SAVE twice keeps the program in the settings sector (written ~2 s later, when quiet); a new instance with
 // those bytes boots on it
 {
-  check(ex.sim_blob_size() === 4088 && ex.sim_blob(0) !== 0 && ex.sim_blob(9) === 0, 'storage blobs exported');
+  check(ex.sim_blob_size() === 16384 && ex.sim_blob(0) !== 0 && ex.sim_blob(9) === 0, 'storage blobs exported');
   const h0 = ex.sim_store_hash(), tap = (b) => { ex.sim_button(b, 1); for (let i = 0; i < 20; i++) ex.sim_render(128); ex.sim_button(b, 0); for (let i = 0; i < 20; i++) ex.sim_render(128); };
   tap(8);                                               // HOME: PERFORM
   ex.sim_enc(2, 7);                                     // KNOB 1 (CUTOFF) +7: the program is edited

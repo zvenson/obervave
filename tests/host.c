@@ -77,6 +77,8 @@ static uint32_t fm1_input_note_edges(void) { return 0; }   /* (the script sets f
 static int32_t host_enc[HOST_NENC], host_enc_pos[HOST_NENC];   /* detents owed to the app; the position so far (the film's log) */
 static int32_t fm1_enc_take(uint32_t e) { int32_t v = host_enc[e % HOST_NENC]; host_enc[e % HOST_NENC] = 0; return v; }
 static uint64_t host_leds;                      /* bit id: LED id lit (0..13 buttons, 14..40 keys) */
+static void fm1_irq_off(void) {}                 /* (the host's audio runs between the main loop's passes) */
+static void fm1_irq_on(void) {}
 static void fm1_led_key(uint32_t id, int on) { if (on) host_leds |= (uint64_t)1 << id; else host_leds &= ~((uint64_t)1 << id); }
 static uint64_t host_glow;                      /* the dim layer (not in the film log) */
 static void fm1_led_key_glow(uint32_t id, int on) { if (on) host_glow |= (uint64_t)1 << id; else host_glow &= ~((uint64_t)1 << id); }
@@ -105,10 +107,19 @@ static void lcd_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint1
 #include "gfx.c"
 
 #define SETTINGS_MAX (4096u - 12u)
-static uint8_t host_store[SETTINGS_MAX + 4];
+#define HOST_BLOB_SZ (4u * 4096u)               /* (one size for the simulator's storage: a pattern slot's) */
+static uint8_t host_store[HOST_BLOB_SZ];
 static int settings_load(void *p, uint32_t n)
 {
-    static int v2_done;
+    static int v2_done, v3_done;
+    if (!v3_done && getenv("OBV_V15")) {        /* (test: a 1.5 store: version 3, program 6, 100 BPM, pattern 1) */
+        v3_done = 1;
+        memset(host_store, 0, sizeof host_store);
+        host_store[0] = 1;
+        host_store[4] = 3; host_store[5] = 5; host_store[6] = 100;
+        host_store[11] = 1;                     /* (click: REC) */
+        if (n != 8u) return -1;                 /* (the 3.0 settings: not there yet) */
+    }
     if (!v2_done && getenv("OBV_V2")) {         /* (test: a 1.4 store: program 4 the user's, "MMMMMMMMMM") */
         v2_done = 1;
         host_store[0] = 1;
@@ -131,6 +142,21 @@ static int settings_save(const void *p, uint32_t n)
 static uint8_t host_blob[NBLOB][SETTINGS_MAX + 4];
 static int blob_load(uint32_t i, void *p, uint32_t n)
 {
+    static int v15_done;
+    if (!v15_done && getenv("OBV_V15")) {       /* (test: 1.5's pattern 1: A 16 steps, a note every 4; B 8 steps from the back,
+                                                 * its own program 8, half dry) */
+        uint8_t *b = host_blob[0] + 4;
+        uint32_t k;
+        v15_done = 1;
+        memset(host_blob[0], 0, sizeof host_blob[0]);
+        host_blob[0][0] = 1;
+        b[0] = 'S'; b[1] = 'E'; b[2] = 'Q'; b[3] = '1';
+        b[4] = 16; b[6] = 2; b[7] = 50;          /* trk[0]: len 16, D_16 (2), swing 50 */
+        b[12] = 8; b[14] = 2; b[15] = 50; b[18] = 8; b[19] = 64;   /* trk[1]: len 8, B_PROG 8, B_DRY 64 */
+        for (k = 0; k < 256u; k++) { uint8_t *st = b + 20 + k * 8u; st[5] = 96; st[7] = 100; }
+        for (k = 0; k < 16u; k += 4u) { uint8_t *st = b + 20 + k * 8u; st[0] = (uint8_t)(48 + k); st[4] = 100; }
+        for (k = 0; k < 8u; k += 2u) { uint8_t *st = b + 20 + (255u - k) * 8u; st[0] = 36; st[4] = 110; }
+    }
     if (i >= NBLOB || host_blob[i][0] != 1 || n > SETTINGS_MAX) return -1;
     memcpy(p, host_blob[i] + 4, n);
     return 0;
@@ -143,8 +169,31 @@ static int blob_save(uint32_t i, const void *p, uint32_t n)
     printf("%6u ms  blob %u saved (%u B)\n", fm1_ms, i, n);
     return 0;
 }
+#define SLOT_SECT 4u                            /* (3.0) a pattern slot: four sectors, two pieces (platform.c's format) */
+#define SLOT_MAX (SLOT_SECT * 4096u - 16u)
+static uint8_t host_slot[NBLOB][HOST_BLOB_SZ];   /* [0] used, [4..7] a's length, [8..11] b's, the bytes from 16 */
+static int slot_load(uint32_t i, void *a, uint32_t na, void *b, uint32_t nb)
+{
+    uint32_t n[2];
+    if (i >= NBLOB || !host_slot[i][0]) return -1;
+    memcpy(n, host_slot[i] + 4, sizeof n);
+    if (na != n[0] || nb != n[1]) return -1;
+    memcpy(a, host_slot[i] + 16, na);
+    memcpy(b, host_slot[i] + 16 + na, nb);
+    return 0;
+}
+static int slot_save(uint32_t i, const void *a, uint32_t na, const void *b, uint32_t nb)
+{
+    if (i >= NBLOB || na + nb > SLOT_MAX) return -1;
+    host_slot[i][0] = 1; memcpy(host_slot[i] + 4, &na, 4); memcpy(host_slot[i] + 8, &nb, 4);
+    memcpy(host_slot[i] + 16, a, na);
+    memcpy(host_slot[i] + 16 + na, b, nb);
+    printf("%6u ms  pattern slot %u saved (%u + %u B)\n", fm1_ms, i, na, nb);
+    return 0;
+}
 #define NPSECT 2u
-static uint8_t host_psect[NPSECT][SETTINGS_MAX + 4];
+#define host_psect ((uint8_t (*)[4096])(host_store + 4096))   /* (in the settings' blob after them: the simulator keeps
+                                                 * the programs with the settings) */
 static int psect_load(uint32_t i, void *p, uint32_t n)
 {
     if (i >= NPSECT || host_psect[i][0] != 1 || n > SETTINGS_MAX) return -1;

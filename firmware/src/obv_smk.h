@@ -108,6 +108,7 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
                 if (!n) continue;
                 play_note(0, n, 0); midi_send(0x80u | MIDI_OUT_CH, n, 0);
                 if (rec_keys()) rec_note(0, n, 0);
+                for (q = 0; q < NTRK; q++) ctl_live_hold[q][n >> 5 & 3u] &= ~(1u << (n & 31u));   /* (let go: the sequencer's) */
             }
         }
         *dirty = 1;
@@ -124,18 +125,16 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
                 erase_note(n);
                 say("ERASED");
             } else {
-                play_note(1, n, vel); midi_send(0x90u | MIDI_OUT_CH, n, vel);
-                if (rec_keys()) rec_note(1, n, vel);
-                pen_add(n);
+                midi_send(0x90u | MIDI_OUT_CH, n, vel);
+                note_in(1, n, vel);
             }
         } else if (smk_ext_note[kk]) {
             uint32_t n = smk_ext_note[kk];
             smk_ext_note[kk] = 0;
             if (smk_ext_erase[kk]) erase_on[(uint32_t)clampi((int32_t)n - pat.trk[seq_trk].transp, 1, 127)] = 0;
             else {
-                play_note(0, n, 0); midi_send(0x80u | MIDI_OUT_CH, n, 0);
-                if (rec_keys()) rec_note(0, n, 0);
-                if (notes_down) notes_down--;
+                midi_send(0x80u | MIDI_OUT_CH, n, 0);
+                note_in(0, n, 0);
             }
         }
         if (notes_shown()) *dirty = 1;          /* (a note alone changes no knob page) */
@@ -161,7 +160,7 @@ static void smk_buttons(uint32_t b, uint32_t *dirty)
         if (b & (1u << BTN_RIGHT) && seq_pg[t] + 1u < seq_pages(t)) seq_pg[t]++;
         msg[0] = 0; scat(msg, "PAGE "); fmt_u(msg + slen(msg), seq_pg[t] + 1u); scat(msg, " OF "); fmt_u(msg + slen(msg), seq_pages(t));
         smk_overlay(msg, seq_pg[t] == pg ? (b & (1u << BTN_LEFT) ? "THE FIRST PAGE" : "THE LAST PAGE: LENGTH ADDS MORE")
-                                         : t ? "TRACK B ON THE PADS" : "TRACK A ON THE PADS");
+                                         : t == 0u ? "TRACK A ON THE PADS" : t == 1u ? "TRACK B ON THE PADS" : t == 2u ? "TRACK C ON THE PADS" : "TRACK D ON THE PADS");
         *dirty = 1;
     }
 }

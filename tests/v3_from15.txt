@@ -1,0 +1,9 @@
+3000 btn 11
+3200 shot
+3400 btn 12
+6400 shot
+6500 btn 12
+6700 btn 8
+6800 btn 8
+7000 shot
+9000 end

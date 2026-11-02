@@ -77,9 +77,9 @@ static void fm1_led_key_glow(uint32_t id, int on)   /* as fm1_led_key, the dim l
 #endif
 #ifndef FELUCCA_ID
 #if BOARD_SMK37
-#define FELUCCA_ID SMK_MODEL "_950"             /* SMK-37 Pro_95N (Elite, MKE-P37: SMK_MODEL), tools/build.py */
+#define FELUCCA_ID SMK_MODEL "_9500"            /* SMK-37 Pro_95XY (Elite, MKE-P37: SMK_MODEL), tools/build.py */
 #else
-#define FELUCCA_ID "FM-1_950"                   /* package identity: 95N = OberVave build N (tools/build.py) */
+#define FELUCCA_ID "FM-1_9500"                  /* package identity: 95XY = OberVave X.Y, 9500 a dev build (tools/build.py) */
 #endif
 #endif
 #ifndef APP_VER
@@ -127,8 +127,12 @@ static volatile uint32_t fm1_ms;                /* milliseconds since power-on (
 #define NBLOB 8u
 #define PSECT_AT 0x00097000u                    /* the 99 programs: 2 sectors at the start of Felucca's store (FL_DATA) */
 #define NPSECT 2u
+#define SLOTS_AT 0x00099000u                    /* (3.0) the patterns of four tracks: NBLOB slots of SLOT_SECT sectors, after the
+                                                 * programs in FL_DATA (0x99000..0xB8FFF) */
+#define SLOT_SECT 4u
 #define FL_RANGE_OK(off, n) (FL_IN(off, n, FL_OTA_LO, FL_OTA_HI) || FL_IN(off, n, SETTINGS_AT, SETTINGS_AT + 0x1000u) || \
-                             FL_IN(off, n, BLOBS_AT, BLOBS_AT + NBLOB * 0x1000u) || FL_IN(off, n, PSECT_AT, PSECT_AT + NPSECT * 0x1000u))
+                             FL_IN(off, n, BLOBS_AT, BLOBS_AT + NBLOB * 0x1000u) || FL_IN(off, n, PSECT_AT, PSECT_AT + NPSECT * 0x1000u) || \
+                             FL_IN(off, n, SLOTS_AT, SLOTS_AT + NBLOB * SLOT_SECT * 0x1000u))
 #endif
 #include "fm1_flash.h"
 static uint8_t flash_ok;
@@ -243,6 +247,47 @@ static int settings_save(const void *p, uint32_t n) { return sector_save(SETTING
 /* blob i (0..NBLOB-1): one more sector each, the same format (OberVave: a sequencer pattern) */
 static int blob_load(uint32_t i, void *p, uint32_t n) { return i < NBLOB ? sector_load(BLOBS_AT + i * 0x1000u, p, n) : -1; }
 static int blob_save(uint32_t i, const void *p, uint32_t n) { return i < NBLOB ? sector_save(BLOBS_AT + i * 0x1000u, p, n) : -1; }
+/* slot i (0..NBLOB-1): SLOT_SECT sectors for something bigger than one (OberVave 3.0: a pattern of four tracks and
+ * its sounds), two pieces one after the other: [magic][a's length][b's length][crc32 of both] then a, then b.
+ * slot_load reads straight into a and b (no buffer that big): on -1 they hold rubbish, the caller starts afresh */
+#define SLOT_MAGIC 0x544F4C53u                  /* "SLOT" */
+#define SLOT_MAX (SLOT_SECT * 0x1000u - 16u)
+static uint32_t crc32_more(uint32_t c, const uint8_t *p, uint32_t n)   /* (crc32's inner loop, to go on over b) */
+{
+    uint32_t k;
+    c = ~c;
+    while (n--) {
+        c ^= *p++;
+        for (k = 0; k < 8u; k++)
+            c = c & 1u ? (c >> 1) ^ 0xEDB88320u : c >> 1;
+    }
+    return ~c;
+}
+static int slot_load(uint32_t i, void *a, uint32_t na, void *b, uint32_t nb)
+{
+    uint32_t h[4], at = SLOTS_AT + i * SLOT_SECT * 0x1000u;
+    if (!flash_ok || i >= NBLOB || na + nb > SLOT_MAX || st_read(at, h, sizeof h) || h[0] != SLOT_MAGIC || h[1] != na || h[2] != nb)
+        return -1;
+    if (st_read(at + sizeof h, a, na) || st_read(at + sizeof h + na, b, nb))
+        return -1;
+    return crc32_more(crc32_more(0, a, na), b, nb) == h[3] ? 0 : -1;
+}
+static int slot_save(uint32_t i, const void *a, uint32_t na, const void *b, uint32_t nb)   /* a, b in RAM */
+{
+    uint32_t h[4] = {SLOT_MAGIC, na, nb, 0}, at = SLOTS_AT + i * SLOT_SECT * 0x1000u, k, took;
+    int rc;
+    if (!flash_ok || i >= NBLOB || na + nb > SLOT_MAX)
+        return -1;
+    h[3] = crc32_more(crc32_more(0, a, na), b, nb);
+    for (k = 0; k < SLOT_SECT; k++) {
+        fm1_wdt_feed();                         /* (~50 ms an erase) */
+        if ((rc = fl_erase4k(at + k * 0x1000u, &took)) != 0)
+            return rc;
+    }
+    if ((rc = fl_write(at + sizeof h, a, na)) != 0 || (rc = fl_write(at + sizeof h + na, b, nb)) != 0)
+        return rc;
+    return fl_write(at, (const uint8_t *)h, sizeof h);   /* the header last: a cut save stays invalid */
+}
 /* program sector i (0..NPSECT-1): the same format (OberVave: 50 user programs each) */
 static int psect_load(uint32_t i, void *p, uint32_t n) { return i < NPSECT ? sector_load(PSECT_AT + i * 0x1000u, p, n) : -1; }
 static int psect_save(uint32_t i, const void *p, uint32_t n)
@@ -277,6 +322,10 @@ static void smk_owner_check(void)
     for (i = 0; i < NPSECT; i++) {
         fm1_wdt_feed();
         fl_erase4k(PSECT_AT + i * 0x1000u, &took);
+    }
+    for (i = 0; i < NBLOB; i++) {               /* (3.0: each pattern slot's head; another firmware's samples go) */
+        fm1_wdt_feed();
+        fl_erase4k(SLOTS_AT + i * SLOT_SECT * 0x1000u, &took);
     }
     fl_erase4k(OWNER_AT, &took);
     fl_write(OWNER_AT, want, 16);

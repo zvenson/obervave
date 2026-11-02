@@ -11,7 +11,7 @@
   // the firmware's numbers (firmware/src/platform.c: BTN_*, ENC_*)
   const BTN = { octm: 0, octp: 1, fx: 2, sel: 3, env: 4, lfo: 5, edit: 6, glo: 7, home: 8, save: 9, arp: 10, seq: 11, play: 12, rec: 13 };
   const ENC = { select: 0, algo: 1, k1: 2, k2: 3, k3: 4, k4: 5, presets: 6 };
-  const STORE_KEY = 'obervave-sim-store-1', MASTER_KEY = 'obervave-sim-master';
+  const STORE_KEY = 'obervave-sim-store-3', MASTER_KEY = 'obervave-sim-master';
 
   const S = { node: null, ctx: null, on: false, starting: false, master: 900, midi: null, midiSel: '' };
   try { const m = parseInt(localStorage.getItem(MASTER_KEY), 10); if (m >= 0 && m <= 1023) S.master = m; } catch (e) {}

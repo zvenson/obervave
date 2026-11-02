@@ -1,0 +1,61 @@
+# OberVave 3.0: four tracks. STEPS writes A and B, PLAY, GLO held + key 1 stops A on the bar, HOME twice = MIXER
+# (its rows by HOME again, MASTER last), FX four times = DRIVE, SELECT in the MIXER = the next pattern on the bar
+3000 btn 11
+3200 shot
+3400 btn 11
+3500 keys 0x1
+3600 keys 0
+3700 keys 0x10
+3800 keys 0
+3900 keys 0x80
+4000 keys 0
+4100 keys 0x1000
+4200 keys 0
+4400 enc 1 1
+4500 enc 6 6
+4700 keys 0x1
+4800 keys 0
+4900 keys 0x1
+5000 keys 0
+5100 enc 2 2
+5200 keys 0x80
+5300 keys 0
+5500 shot
+5700 btn 11
+5800 btn 11
+5900 btn 11
+6000 btn 12
+7000 shot
+7200 btndown 7
+7300 keys 0x1
+7400 keys 0
+7500 shot
+7600 btnup 7
+9000 shot
+9200 btn 8
+9400 btn 8
+9600 shot
+9700 enc 3 -30
+9900 btn 8
+10000 btn 8
+10100 btn 8
+10200 btn 8
+10300 btn 8
+10400 btn 8
+10500 shot
+10600 enc 3 -20
+10700 enc 5 40
+11000 shot
+11200 btn 2
+11300 btn 2
+11400 btn 2
+11500 btn 2
+11700 shot
+11900 btn 8
+12000 btn 8
+12100 enc 0 1
+12300 shot
+14500 shot
+15000 btn 12
+19000 shot
+19500 end
