@@ -13,7 +13,11 @@ its sounds and its mix. 99 programs (70 factory sounds).
 
 <p align="center"><img src="docs/screen.png" width="240" alt="OberVave's screen: program 01 DARK ARP, the ARP page with four knobs, the scope, eight voice LEDs"></p>
 
-> **Released: 3.3** (`docs/firmware/obervave-3.3.fwsc`, identity `FM-1_9533`; on the Firmware Hub, built and signed by this
+> **Released: 3.3.1** (`docs/firmware/obervave-3.3.1.fwsc`, identity `FM-1_9533`): newer FM-1s from AliExpress carry another
+> flash chip (UC25HQ80, JEDEC `B3 60 14`) – OberVave saved to RAM only on them and refused updates; 3.3.1 takes it as the
+> Puya one (thanks to Paul Nederhoed for finding it). Nothing else changed.
+>
+> **3.3** (identity `FM-1_9533`; on the Firmware Hub, built and signed by this
 > repository's workflow). 3.3 is fatter: **LP 24 is a real four-pole ladder** now, four stages with the resonance fed back
 > around all four as in the filter chip of the later eight-voice synths, a tanh in the loop, so the resonance compresses
 > the sound instead of thinning it and the bass stays. **No hard clipping anywhere in a voice**: the oscillator mix and the

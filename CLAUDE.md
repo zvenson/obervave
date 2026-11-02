@@ -127,6 +127,11 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**3.3.1 (2026-11-02, tag v3.3.1, FM-1_9533):** only the UC25HQ80 flash (JEDEC 0xB36014, newer FM-1s from AliExpress) in
+`FL_JEDEC_OK` (hal/fm1_flash_map.h) beside the Puya 0x856014 – app, recovery, update loader; on it 3.3 saved to RAM only and
+refused updates (Paul Nederhoed). The user: fix OberVave, not sloopDX. Not tested on that chip before the release (Paul cannot
+flash a file himself: the hub's installer is his way). The SMK-37 packages stay 3.3-beta.
+
 **3.3 (2026-10-31, tag v3.3, FM-1_9533, "Oberheim wäre massiver"; heard by the user on the FM-1 and released the same day, the CI's attested packages in docs/firmware (FM-1) and docs/firmware/smk37 (3.3-beta, tag smk37-v3.3-beta); the native VIBE 3.3 carries the same engine, vibe-sdk 03010dc):** LP24 is a
 real four-pole ladder (`lad_coef` / `lad_step` in obv_dsp.h: four TPT one-poles, the resonance fed back around all four,
 zero-delay linear solve, a tanh on the loop's input, input gain 1 + k/2 so the bass stays; was two cascaded SVFs with the
