@@ -20,6 +20,7 @@ run() { echo "== $1"; shift; "$@" || fail=1; }
 
 run "FM-1 app on the host: the default script plays, screens and sound" sh tests/run_host.sh
 run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_host.sh
+run "MIDI clock: the beats and the tracks stay on the master's quarters for minutes (no drift)" python3 tests/clock_sync_test.py
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
 
 $CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test.c

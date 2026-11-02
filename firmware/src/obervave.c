@@ -1839,7 +1839,7 @@ static void draw_seq_knobs(void)
 /* the keys and MIDI in: read by the main loop, and while the screen is drawn (app_idle, notes only), so the notes
  * of a chord or among a stream of CCs are not held up by a redraw (a knob page is ~30 ms on the SPI alone) */
 static uint32_t dirty_hdr = 1, dirty_page = 1, dirty_tags = 1, dirty_steps = 1;
-static uint32_t keys_prev, clk_n, clk_t0, clk_last, idle_ok;
+static uint32_t keys_prev, clk_n, clk_t0, clk_last, ext_clk, idle_ok;
 static uint8_t held_key[27], key_step[27];
 static int notes_shown(void) { return seq_shown() || rec; }   /* the only screens a note changes */
 
@@ -1936,9 +1936,15 @@ static void midi_in(uint32_t notes_only)
         if (st == 0xF8u) {                  /* clock: 24 per quarter. The tempo from 4 quarters (96 clocks) in rendered
                                              * frames, rounded to 48 as our own (quarter_len); taken only when it moves
                                              * by more than 0.3 %: the clock's jitter must not wobble the steps */
+            if (ctl_ext_lock && ext_clk++ % 24u == 0u) ctl_ext_beats++;   /* (a master's quarter: the phase lock, obv_seq.h) */
             if (!clk_n || fm1_ms - clk_last > 250u) { clk_n = 0; clk_t0 = eng_t; }
             clk_last = fm1_ms;
-            if (++clk_n == 97u) {
+            if (++clk_n == 25u && !ctl_ext_quarter) {   /* (no tempo yet: one quarter's guess, so a master that starts
+                                                 * its clock with PLAY leads from the second beat, not the fifth) */
+                uint32_t q = (eng_t - clk_t0 + 24u) / 48u * 48u;
+                if (q > FS / 5u && q < FS * 8u / 5u) ctl_ext_quarter = q;
+            }
+            if (clk_n == 97u) {
                 uint32_t q = ((eng_t - clk_t0) / 4u + 24u) / 48u * 48u, d;
                 if (q > FS / 5u && q < FS * 8u / 5u) {
                     d = q > ctl_ext_quarter ? q - ctl_ext_quarter : ctl_ext_quarter - q;
@@ -1950,11 +1956,12 @@ static void midi_in(uint32_t notes_only)
         }
         if (st == 0xFAu || st == 0xFBu) {   /* start / continue: the arp and the sequencer from the top */
             ctl_arp_restart = 1; clk_n = 0;
+            ctl_ext_lock = 1; ext_clk = 0;      /* (the next clock is the master's downbeat) */
             ctl_seq_restart = 1; ctl_seq_run = 1;
             dirty_tags = dirty_steps = 1;
             continue;
         }
-        if (st == 0xFCu) { ctl_seq_run = 0; dirty_tags = dirty_steps = 1; continue; }
+        if (st == 0xFCu) { ctl_seq_run = 0; ctl_ext_lock = 0; dirty_tags = dirty_steps = 1; continue; }
         if (st >= 0xF0u) continue;
         if (set.midi_ch && ch > set.midi_ch && ch < set.midi_ch + NTRK) {   /* the next three channels: tracks B-D */
             uint32_t t = ch - set.midi_ch;
@@ -2217,7 +2224,7 @@ static void app_main(void)
         if (b & (1u << BTN_SEL) && page == PG_OUTPUT && !layer) { link_set(set.link + 1u); dirty_page = 1; }   /* (3.4) OUTPUT: SELECT pressed = VIBE LINK off > on > control */
         if (b & (1u << BTN_SEL) && page == PG_GLOBAL && !layer) {   /* GLOBAL: SELECT pressed = SYNC AUTO / INTERNAL */
             set.sync_int = !set.sync_int; set_dirty = 1; set_t = fm1_ms;
-            if (set.sync_int) { ctl_ext_quarter = 0; clk_n = 0; }
+            if (set.sync_int) { ctl_ext_quarter = 0; ctl_ext_lock = 0; clk_n = 0; }
             say(set.sync_int ? "SYNC INTERNAL" : "SYNC AUTO: A MIDI CLOCK LEADS");
             dirty_page = 1;
         }
@@ -2456,7 +2463,7 @@ static void app_main(void)
         smk_wheels();
 #endif
         midi_in(0);
-        if (ctl_ext_quarter && fm1_ms - clk_last > 1000u) { ctl_ext_quarter = 0; clk_n = 0; }   /* (the clock stopped: our own tempo) */
+        if (ctl_ext_quarter && fm1_ms - clk_last > 1000u) { ctl_ext_quarter = 0; ctl_ext_lock = 0; clk_n = 0; }   /* (the clock stopped: our own tempo) */
 
         /* LEDs: the keys that sound, the lit buttons; in the step view the white keys are the steps (glowing: a note
          * there, bright: playing now or held) and the black keys their functions (bright: on, glowing: available) */
