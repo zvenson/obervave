@@ -21,6 +21,7 @@ complete source under the same licence too.
 | What | Licence | Where |
 | --- | --- | --- |
 | Terminus font 8x16 (ter-u16n), rendered into `firmware/gen/felucca_font.h` | SIL OFL 1.1 | `assets/fonts/Terminus-LICENSE.txt` |
+| The screen mirror: `firmware/src/screen_mirror/` (`screen_mirror.c`, `.h`), Copyright (c) 2026 Patrick F. Kellogg – OberVave's screen to his [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) app; the glue `obv_mirror.h` and the hooks in `lcd.c` are zvenson's | MIT | `firmware/src/screen_mirror/LICENSE` |
 | URW Bookman Demi and Inter SemiBold, as outlines in `assets/logo*.svg` (made by `tools/make_logo.py`) | URW base35 licence (AGPL-3.0 with the font-embedding exception), SIL OFL 1.1 | <https://github.com/ArtifexSoftware/urw-base35-fonts>, <https://rsms.me/inter/> |
 | Zig (`zig cc`, MIT) and Binaryen's `wasm-opt` (Asyncify, Apache-2.0) build `docs/sim/obervave.wasm`; neither is in this tree | MIT, Apache-2.0 | <https://ziglang.org>, <https://github.com/WebAssembly/binaryen> |
 | JieLi AC79 SDK: `uboot.boot`, `cfg_tool.bin`, `eq_cfg_hw.bin` are read from your SDK checkout at build time and placed in the package; no SDK files are in this tree | Apache-2.0 | <https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK> |
