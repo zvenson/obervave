@@ -13,7 +13,7 @@ its sounds and its mix. 99 programs (70 factory sounds).
 
 <p align="center"><img src="docs/screen.png" width="240" alt="OberVave's screen: program 01 DARK ARP, the ARP page with four knobs, the scope, eight voice LEDs"></p>
 
-> **3.3.2** (identity `FM-1_9533`): OberVave's screen, live and as big as you like, on a computer or phone with
+> **Released: 3.3.2** (`docs/firmware/obervave-3.3.2.fwsc`, identity `FM-1_9533`): OberVave's screen, live and as big as you like, on a computer or phone with
 > [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) by Patrick F. Kellogg – for players who cannot read the 1.54-inch
 > display. OberVave sends its screen only while FM-1 Mirror is open and asks for it; playing is unchanged.
 >

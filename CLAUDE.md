@@ -127,7 +127,7 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
-**3.3.2 (2026-11-02, FM-1_9533, NOT tagged yet – waits for a test on a real FM-1 with the app):** FM-1 Mirror (Patrick F.
+**3.3.2 (2026-11-02, FM-1_9533, tag v3.3.2, released by the user without a hardware test ("baller hoch")):** FM-1 Mirror (Patrick F.
 Kellogg's app; his screen_mirror module, MIT, in firmware/src/screen_mirror/): lcd.c's LCD_MIRROR hooks hand every RAMWR's
 pixels to obv_mirror.h, which makes rows of them; the app's hello (F0 7D 'F' 'S' 00/01 F7) is taken from the platform's
 SysEx frame before platform_poll drops it; rows go out through the installer's SysEx queue (mr_send: only what the queue
