@@ -16,7 +16,9 @@
  * Integers only (no FPU, no 64-bit division); tests/host.c runs this on a computer. */
 static void app_idle(void);
 #define LCD_IDLE() app_idle()                   /* (lcd.c: while the DMA runs) */
+#define LCD_MIRROR 1                            /* (lcd.c: what is painted also goes to FM-1 Mirror – obv_mirror.h) */
 #include "platform.c"
+#include "obv_mirror.h"
 #include "obv_dsp.h"
 #include "obv_params.h"
 #include "obv_fx.h"
@@ -2025,6 +2027,10 @@ static void app_main(void)
     for (;;) {
         uint32_t rel, b, lit = 0, base = (uint32_t)(KEY0 + 12 * set.oct), np = page;
         int32_t e;
+        if (mirror_poll()) {                    /* FM-1 Mirror opened (or rows were lost): everything drawn again */
+            lcd_fill(0, 0, 240, 240, C_PANEL);
+            dirty_hdr = dirty_page = dirty_steps = dirty_tags = 1; hints_key = leds_q = 0xFFFFFFFFu; scope_state = 1; t_scope = 0;
+        }
         platform_poll();
 
         keys_in(0);
