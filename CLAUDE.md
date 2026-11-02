@@ -63,6 +63,14 @@ the sequencer, so **we do not merge upstream.** Keep `upstream` as a fetch-only 
 specific fixes deliberately if ever needed. The base is ours and has stopped moving. Keep an off-GitHub
 `git bundle` backup too.
 
+**Exactly one upstream exception so far** — DØG-5 stays pinned to v1.5.3 except for upstream `36df696`
+(cherry-picked with `-x`): accept the UC25HQ80 flash (JEDEC `0xB36014`, newer AliExpress FM-1s) in
+`FL_JEDEC_OK` beside the Puya P25Q80, so those units save to flash and take updates instead of RAM-only.
+One line, no effect on the program-sector / flash-write logic. Upstream OberVave 3.x history is recorded in
+our branch (a `-s ours` merge) but **no 3.x code is taken.** Candidate to hand-port later, **only after a
+listening test on the device, not now:** the four-pole ladder filter + soft stages (upstream `66ef5b0`) —
+its DSP (`obv_dsp.h`) is self-contained, but the engine hookup needs a manual port (3.x's `part_t` diverged).
+
 ---
 
 ## 4. MEASURED FACTS (read from source at the pinned commit — the README is wrong in places, these are right)
