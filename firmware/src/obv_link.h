@@ -46,7 +46,11 @@ static void link_master(void)                   /* MASTER: 0..1023 -> 0..127, se
 {
 #ifndef OBV_HOST
     int32_t adc = fm1_adc_read(FM1_ADC_MASTER);
-    if (adc >= 0) { uint32_t v = (uint32_t)adc >> 3; if (v != lk_master) { if (lk_master != 0xFFFFu) lk_cc(LK_CC_MASTER, v); lk_master = v; } }
+    if (adc >= 0) {                             /* (its ADC flickers by one step: sent once it has moved two; the ends always) */
+        uint32_t v = (uint32_t)adc >> 3, d = lk_master == 0xFFFFu ? 99u : v > lk_master ? v - lk_master : lk_master - v;
+        if (lk_master == 0xFFFFu) lk_master = v;
+        else if (d >= 2u || ((v == 0u || v == 127u) && d)) { lk_cc(LK_CC_MASTER, v); lk_master = v; }
+    }
 #endif
 }
 static void link_set(uint32_t mode)             /* OFF > ON > CONTROL; CONTROL: nothing sounds here */
