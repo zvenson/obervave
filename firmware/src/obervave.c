@@ -57,9 +57,11 @@ static struct {
                                                    amount, tone, return; ok: DV_OK */
     uint8_t m_vol, m_dj, m_drive, m_comp, m_ok; /* MASTER: volume (100 = unity), DJ filter (64 = off, below LP, above
                                                    HP), drive, compressor; ok: M_OK */
+    uint8_t link, link_ok;                      /* (3.4) VIBE LINK: 0 off, 1 on, 2 control – obv_link.h; ok: LINK_OK */
 } set;
 #define MIDI_OUT_CH (set.midi_ch ? (set.midi_ch - 1u + seq_trk % NTRK) & 15u : 0u)   /* the keys go out on the track's MIDI channel (OMNI: 1) */
 #define RQT_OK 0xA5u
+static const char *const LK_NAME[3] = {"LINK OFF", "LINK ON", "LINK CONTROL"};   /* (3.4) VIBE LINK, obv_link.h */
 #define M_OK 0x3Cu
 #define DV_OK 0x5Du
 static const char *const DV_NAME[NDV] = {"OVERDRV", "DIST", "FUZZ", "CRUSH"};
@@ -902,7 +904,7 @@ static void draw_page(void)
         {
             static char cpu[24];                /* the GLOBAL page: the render time of an audio half (budget 5800 us), SYNC */
             cpu[0] = 0; fmt_u(cpu, ui_render_us); scat(cpu, "us"); scat(cpu, set.sync_int ? " INT" : ctl_ext_quarter ? " CLK" : " AUTO");
-            ui_page(t, k, save_armed ? "SAVE?" : seq_shown() && pat_edited ? "EDITED" : page == PG_GLOBAL && !layer ? cpu : 0);
+            ui_page(t, k, save_armed ? "SAVE?" : seq_shown() && pat_edited ? "EDITED" : page == PG_GLOBAL && !layer ? cpu : page == PG_OUTPUT && !layer ? LK_NAME[set.link % 3u] : 0);
         }
     }
 }
@@ -1946,6 +1948,7 @@ static void trk_clear(void)
     m[0] = 0; scat(m, "TRACK "); m[6] = TRK_L[seq_trk % NTRK]; m[7] = 0; scat(m, " CLEARED"); say(m);
     dirty_tags = dirty_steps = dirty_page = 1;
 }
+#include "obv_link.h"                          /* (3.4) VIBE LINK: the FM-1 as the VIBE's controller */
 static void app_main(void)
 {
     uint32_t k, i, t_led = 0, t_scope = 0, t_page = 0, t_hdr = 0, leds_q = 1;
@@ -2002,6 +2005,7 @@ static void app_main(void)
     }
     if (set.dv_ok != DV_OK) { uint32_t t; for (t = 0; t < NTRK; t++) set.mix_drv[t] = 0; set.dv_type = DV_OVERDRIVE; set.dv_amt = 60; set.dv_tone = 90; set.dv_mix = 127; set.dv_ok = DV_OK; }
     if (set.m_ok != M_OK) { set.m_vol = 100; set.m_dj = 64; set.m_drive = 0; set.m_comp = 0; set.m_ok = M_OK; }
+    if (set.link_ok != LINK_OK) { set.link = 0; set.link_ok = LINK_OK; }   /* (3.4) */
     if (set.prog >= NPROG) set.prog = 0;
     if (set.tempo < 40u || set.tempo > 240u) set.tempo = 120;
     if (set.oct < -2 || set.oct > 2) set.oct = 0;
@@ -2032,6 +2036,7 @@ static void app_main(void)
             dirty_hdr = dirty_page = dirty_steps = dirty_tags = 1; hints_key = leds_q = 0xFFFFFFFFu; scope_state = 1; t_scope = 0;
         }
         platform_poll();
+        if (set.link == 2u) { link_control(); continue; }   /* (3.4) VIBE LINK CONTROL: the panel is the VIBE's */
 
         keys_in(0);
 #if BOARD_SMK37
@@ -2062,11 +2067,13 @@ static void app_main(void)
         /* buttons, as sloopDX: tapped = its pages, held = a layer, HOME while held = locked open (any layer button
          * then only lets it go); PLAY, REC, OCT work inside a layer */
         b = fm1_input_edges(&rel);
+        if (set.link) link_buttons(b, rel);     /* (3.4) VIBE LINK ON: the buttons go out as well */
         if (b & ~(1u << BTN_SAVE)) pat_save_armed = 0;   /* (SAVE PATTERN?: any other button says no) */
         {
             uint32_t mh = is_seq_page(page) && seq_view == SV_STEPS && !layer && (fm1_in.buttons >> BTN_SEL & 1u);
             if (mh != more_held) { more_held = mh; dirty_page = dirty_steps = 1; }   /* (SELECT held in STEPS: STEP+) */
         }
+        if (b & (1u << BTN_SEL) && page == PG_OUTPUT && !layer) { link_set(set.link + 1u); dirty_page = 1; }   /* (3.4) OUTPUT: SELECT pressed = VIBE LINK off > on > control */
         if (b & (1u << BTN_SEL) && page == PG_GLOBAL && !layer) {   /* GLOBAL: SELECT pressed = SYNC AUTO / INTERNAL */
             set.sync_int = !set.sync_int; set_dirty = 1; set_t = fm1_ms;
             if (set.sync_int) { ctl_ext_quarter = 0; clk_n = 0; }
@@ -2224,7 +2231,7 @@ static void app_main(void)
         }
 
         /* encoders */
-        if ((e = fm1_enc_take(ENC_PRESETS)) != 0 && save_armed) {           /* SAVE armed: PRESETS picks the slot to save into ("save as") */
+        if ((e = link_enc_take(ENC_PRESETS)) != 0 && save_armed) {           /* SAVE armed: PRESETS picks the slot to save into ("save as") */
             save_to = (uint32_t)((int32_t)save_to + e + (int32_t)NPROG * 4) % NPROG;
             save_t = fm1_ms;
             dirty_hdr = 1;
@@ -2232,10 +2239,10 @@ static void app_main(void)
             trk_load(seq_trk, (uint32_t)((int32_t)trk_prog[seq_trk % NTRK] + e + (int32_t)NPROG * 4) % NPROG);
             dirty_hdr = dirty_page = dirty_tags = dirty_steps = 1;
         }
-        if ((e = fm1_enc_take(ENC_ALGORITHM)) != 0) {   /* ALGORITHM: the track A-D (as sloopDX) */
+        if ((e = link_enc_take(ENC_ALGORITHM)) != 0) {   /* ALGORITHM: the track A-D (as sloopDX) */
             trk_select((uint32_t)clampi((int32_t)seq_trk + (e > 0 ? 1 : -1), 0, NTRK - 1));
         }
-        if ((e = fm1_enc_take(ENC_SELECT)) != 0) {   /* SELECT (VIBE's DATA): STEPS the bar, the sequencer's other views and
+        if ((e = link_enc_take(ENC_SELECT)) != 0) {   /* SELECT (VIBE's DATA): STEPS the bar, the sequencer's other views and
                                                  * the MIXER the next pattern (on the bar), else the tempo */
             static char msg[16];
             uint32_t t = seq_trk % NTRK, len = pat.trk[t].len;
@@ -2261,7 +2268,7 @@ static void app_main(void)
         }
         for (k = 0; k < 4u; k++) {
             int32_t p = PAGE[page].p[k];
-            if ((e = fm1_enc_take(ENC_KNOB1 + k)) == 0) continue;
+            if ((e = link_enc_take(ENC_KNOB1 + k)) == 0) continue;
             if (e > 1 || e < -1) e *= 3;        /* a fast turn goes further */
             if (page == PG_MIXER && !layer) {  /* the mixer: track k's LEVEL / PAN / SEND */
                 if (mix_row == 6u) {            /* (VIBE) MASTER */
