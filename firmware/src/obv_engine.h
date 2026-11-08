@@ -618,7 +618,7 @@ static void block_globals(part_t *g)            /* a sound's derived numbers, on
 
 static inline uint32_t pw_mod(uint32_t base, int32_t mod)
 {
-    int64_t p = (int64_t)base + ((int64_t)mod << 8);
+    int64_t p = (int64_t)base + (int64_t)mod * 256;
     if (p < (1 << 26)) p = 1 << 26;
     if (p > (int64_t)0xFFFFFFFFu - (1 << 26)) p = (int64_t)0xFFFFFFFFu - (1 << 26);
     return (uint32_t)p;

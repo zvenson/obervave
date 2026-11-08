@@ -33,7 +33,7 @@ static inline __attribute__((always_inline)) int32_t sat_knee(int32_t x)
 static inline __attribute__((always_inline)) int32_t sat_in(int32_t x) { return softclip((x * 85) >> 8) * 3; }
 
 /* tanh(x / 65536) * 65534: the ladder's loop */
-static inline __attribute__((always_inline)) int32_t sat_tanh(int32_t x) { return softclip(x >> 1) << 1; }
+static inline __attribute__((always_inline)) int32_t sat_tanh(int32_t x) { return softclip(x >> 1) * 2; }   /* (* 2: a shift of a negative is undefined in C) */
 
 static inline uint32_t xorshift(uint32_t *st)
 {
@@ -146,7 +146,7 @@ static inline __attribute__((always_inline)) void svf_step(const svf_coef_t *c, 
     int32_t v1 = (c->a1 * s->ic1 + c->a2 * v3) >> 13;
     int32_t v2 = s->ic2 + ((c->a2 * s->ic1 + c->a3 * v3) >> 13);
     int32_t n1 = 2 * v1 - s->ic1;
-    s->ic1 = (uint32_t)(n1 + 24576) < 49152u ? n1 : softclip(n1 >> 1) << 1;   /* linear below +-0.75, then soft */
+    s->ic1 = (uint32_t)(n1 + 24576) < 49152u ? n1 : softclip(n1 >> 1) * 2;   /* linear below +-0.75, then soft */
     s->ic2 = 2 * v2 - s->ic2;
     *lp = v2;
     *bp = v1;
