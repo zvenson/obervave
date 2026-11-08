@@ -1,0 +1,29 @@
+# saves wait for real silence (tests/quiet_save_test.py): a program change (the settings save), delay and reverb up,
+# a staccato bass phrase (a short release: the voice goes idle between the notes), a cutoff tweak, then the tails ring
+3000 midi 0xC0 6 0
+3100 midi 0xB0 75 90
+3100 midi 0xB0 77 110
+3100 midi 0xB0 78 120
+3100 midi 0xB0 81 110
+3500 midi 0x90 36 110
+3700 midi 0x80 36 0
+3750 midi 0x90 38 110
+3950 midi 0x80 38 0
+4000 midi 0x90 43 110
+4200 midi 0x80 43 0
+4250 midi 0x90 36 110
+4450 midi 0x80 36 0
+4500 midi 0x90 41 110
+4700 midi 0x80 41 0
+4750 midi 0x90 43 110
+4950 midi 0x80 43 0
+5000 midi 0x90 48 110
+5200 midi 0x80 48 0
+5250 midi 0x90 46 110
+5450 midi 0x80 46 0
+5500 midi 0x90 36 110
+5700 midi 0x80 36 0
+5750 midi 0x90 38 110
+5950 midi 0x80 38 0
+6000 midi 0xB0 74 70
+40000 end
