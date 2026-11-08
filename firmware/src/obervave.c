@@ -245,12 +245,12 @@ static void trk_load(uint32_t t, uint32_t n)    /* track t: program n */
 }
 
 /* the panel's notes (keys, pads, MIDI) go to the sound the panel is on; a release goes where its note began */
-static uint8_t note_part[128];
-static void play_note(uint32_t on, uint32_t note, uint32_t vel)
+/* part: the track the note plays on. Each source (a key, an outer key, a pad, MIDI) keeps the track its note began on
+ * and lets go there: one note number can sound on two tracks at once (a key held through a K3 turn, the same note from
+ * MIDI), and a track per note number sent the second one's release to the first one's track: a voice hung */
+static void play_note(uint32_t on, uint32_t note, uint32_t vel, uint32_t part)
 {
-    note &= 127u;
-    if (on) note_part[note] = (uint8_t)(seq_trk % NTRK);
-    note_event_p(note_part[note], on, note, vel);
+    note_event_p(part % NTRK, on, note & 127u, vel);
 }
 static int rec_keys(void) { return !ed_patch(P_ARP_MODE)->v[P_ARP_MODE]; }   /* (feeding an arp: its notes are recorded) */
 
@@ -1704,15 +1704,15 @@ static void draw_seq_knobs(void)
  * of a chord or among a stream of CCs are not held up by a redraw (a knob page is ~30 ms on the SPI alone) */
 static uint32_t dirty_hdr = 1, dirty_page = 1, dirty_tags = 1, dirty_steps = 1;
 static uint32_t keys_prev, clk_n, clk_t0, clk_last, idle_ok;
-static uint8_t held_key[27], key_step[27];
+static uint8_t held_key[27], key_step[27], held_part[27];   /* held_part: the track the key's note began on */
 static int notes_shown(void) { return seq_shown() || rec; }   /* the only screens a note changes */
 
 /* a note from the keys or MIDI on the chosen track: it sounds, REC takes it, the sequencer's views use it */
-static void note_in(uint32_t on, uint32_t note, uint32_t vel)
+static void note_in(uint32_t on, uint32_t note, uint32_t vel, uint32_t part)
 {
     uint32_t t;
     note &= 127u;
-    play_note(on, note, vel);
+    play_note(on, note, vel, part);
     if (!on) for (t = 0; t < NTRK; t++) ctl_live_hold[t][note >> 5 & 3u] &= ~(1u << (note & 31u));   /* (let go: the sequencer's again) */
     if (rec_keys()) rec_note(on, note, vel);
     if (on) {
@@ -1768,7 +1768,8 @@ static void keys_in(uint32_t notes_only)
                 } else if (KEY_PAGE[k] >= 0) pat_copy((uint32_t)KEY_PAGE[k]);
             } else {
                 midi_send(0x90u | MIDI_OUT_CH, held_key[k], KEY_VEL(k));
-                note_in(1, held_key[k], KEY_VEL(k));
+                held_part[k] = (uint8_t)(seq_trk % NTRK);
+                note_in(1, held_key[k], KEY_VEL(k), held_part[k]);
                 if (notes_shown()) dirty_steps = dirty_page = 1;
                 continue;
             }
@@ -1781,7 +1782,7 @@ static void keys_in(uint32_t notes_only)
             else if (key_step[k] == 1u) seq_key_up(k);
             else if (key_step[k] == 0u) {
                 midi_send(0x80u | MIDI_OUT_CH, held_key[k], 0);
-                note_in(0, held_key[k], 0);
+                note_in(0, held_key[k], 0, held_part[k]);
                 if (notes_shown()) dirty_steps = dirty_page = 1;
                 continue;
             }
@@ -1791,6 +1792,8 @@ static void keys_in(uint32_t notes_only)
 }
 
 static uint8_t midi_back[4];                    /* a message left for the main loop (app_idle met a program change) */
+static uint8_t midi_part[16][128];              /* a MIDI note's track by channel and note, from its note on (OMNI: the same
+                                                 * note on two channels can sound on two tracks) */
 static void midi_in(uint32_t notes_only)
 {
     uint8_t st, d1, d2;
@@ -1841,11 +1844,12 @@ static void midi_in(uint32_t notes_only)
         }
         if (set.midi_ch && ch != set.midi_ch) continue;
         if (kind == 0x90u && d2) {
-            note_in(1, d1, d2);
+            midi_part[ch - 1u][d1 & 127u] = (uint8_t)(seq_trk % NTRK);
+            note_in(1, d1, d2, midi_part[ch - 1u][d1 & 127u]);
             if (notes_shown()) dirty_steps = dirty_page = 1;
         }
         else if (kind == 0x80u || kind == 0x90u) {
-            note_in(0, d1, 0);
+            note_in(0, d1, 0, midi_part[ch - 1u][d1 & 127u]);
             dirty_page |= rec || is_seq_page(page); dirty_steps = 1;
         }
         else if (kind == 0xE0u) ctl_bend = (int32_t)(d1 | d2 << 7) - 8192;
@@ -2612,3 +2616,17 @@ static void app_main(void)
         }
     }
 }
+
+#ifdef OBV_HOST
+static void host_voices(void)                   /* (tests/host.c "voices"): what still sounds, and what holds it */
+{
+    uint32_t v, p, g = 0;
+    for (v = 0; v < NV; v++) g += vc[v].gate != 0;
+    printf("%6u ms  VOICES gated=%u", fm1_ms, g);
+    for (v = 0; v < NV; v++)
+        if (vc[v].gate) printf(" %u:%u", vc[v].part, vc[v].note);
+    printf(" held=");
+    for (p = 0; p < NPART; p++) printf("%u%s", nheld[p], p + 1u < NPART ? "," : "");
+    printf(" sus=%u hold=%u run=%u\n", ctl_sustain, ctl_hold, ctl_seq_run);
+}
+#endif

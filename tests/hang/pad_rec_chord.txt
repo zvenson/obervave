@@ -1,0 +1,11 @@
+# REC armed, a chord (C4 E4 G4 struck together) as the pen, a pad hit and let go: every note of the chord ends
+3000 midi 0xC0 1 0
+3300 keys 0x4880
+3500 keys 0
+3800 btn 17
+4200 pad 3 100
+4600 pad 3 0
+5000 btn 16
+5100 btn 17
+7000 voices
+7050 end

@@ -285,6 +285,8 @@ static void voice_release(uint32_t part, uint32_t note, uint32_t from_arp)
                 if (!pv[P_GLIDE]) w->pitch16 = w->target16;
             }
             pt[part].last_pitch16 = v0->target16;
+            for (v = 0; v < NV; v++)            /* (a POLY voice of this note from before the change: ended, the group goes on) */
+                if (vc[v].gate && vc[v].note == note && vc[v].part == part && !vc[v].grp) vc[v].gate = 0;
             return;
         }
         /* no hand-over: on as below. A key let go that the group does not sound finds no voice there; one struck before

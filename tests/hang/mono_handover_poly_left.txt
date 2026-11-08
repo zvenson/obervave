@@ -1,0 +1,11 @@
+# notes 50 and 77 held in POLY, MODE to MONO (CC 54), a key struck and let go (the group hands over to 77), all let go
+3000 midi 0xC0 1 0
+3300 midi 0x93 50 92
+3400 midi 0x92 77 29
+3700 midi 0xB0 54 118
+3800 keys 0x8
+4200 keys 0
+4200 midi 0x82 77 0
+4200 midi 0x83 50 0
+6200 voices
+6250 end
