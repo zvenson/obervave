@@ -64,6 +64,7 @@ static void host_dump(void);                    /* (obv_smk.h) */
 static struct { uint32_t notes, buttons; } fm1_in;
 #endif
 static void host_voices(void);                  /* (obervave.c; any build) */
+static void host_steps(void);
 static uint32_t host_edges, host_rel, host_rel_next;   /* press edges, release edges (a tap's release: the call after) */
 static uint32_t fm1_input_edges(uint32_t *released)
 {
@@ -238,8 +239,9 @@ typedef struct { uint32_t t, keys; int btn; uint8_t st, d1, d2; int8_t enc, encn
  * P hit at velocity V, V 0 = let go), "T fader F V" (0..127), "T wheel W RAW" (0 pitch, 1 mod; raw ADC 0..1023),
  * "T xkey K V" (keybed key K 0..36 at V, 0 = let go: the outer keys 0..4, 32..36), "T dump" (pads and state);
  * any build: "T shot" (the screen at T -> OUT-T.ppm) */
-enum { HS_NONE, HS_VEL, HS_PAD, HS_FADER, HS_WHEEL, HS_XKEY, HS_DUMP, HS_SHOT, HS_CHECK, HS_VOICES };
-/* any build: "T voices" prints the voices still gated, the held keys, sustain and HOLD (tests/fuzz_notes.py) */
+enum { HS_NONE, HS_VEL, HS_PAD, HS_FADER, HS_WHEEL, HS_XKEY, HS_DUMP, HS_SHOT, HS_CHECK, HS_VOICES, HS_STEPS };
+/* any build: "T voices" prints the voices still gated, the held keys, sustain and HOLD (tests/fuzz_notes.py); "T steps"
+ * every track's set steps with their gates (tests/rec_track_test.py) */
 static const host_ev_t SCRIPT0[] = {
     {200, 1u << 7, -1, 0, 0, 0, -1, 0},                         /* C4 */
     {700, 1u << 7 | 1u << 11 | 1u << 14, -1, 0, 0, 0, -1, 0},   /* + E4 G4: a chord */
@@ -280,7 +282,8 @@ static void read_script(const char *path)
         else if (!strcmp(what, "dump")) e.smk = HS_DUMP;
         else if (!strcmp(what, "check")) e.smk = HS_CHECK;   /* (SMK: KNOB BANK pressed / let go: the panel check) */
         else if (!strcmp(what, "shot")) e.smk = HS_SHOT;
-        else if (!strcmp(what, "voices")) e.smk = HS_VOICES;   /* (any board: the screen now -> OUT-<ms>.ppm) */
+        else if (!strcmp(what, "voices")) e.smk = HS_VOICES;
+        else if (!strcmp(what, "steps")) e.smk = HS_STEPS;   /* (any board: the screen now -> OUT-<ms>.ppm) */
         else if (!strcmp(what, "midi")) { sscanf(line, "%*u %*s %i %u %u", (int *)&a, &b, &c); e.st = (uint8_t)a; e.d1 = (uint8_t)b; e.d2 = (uint8_t)c; }
         else continue;
         ev[n++] = e;
@@ -367,6 +370,8 @@ static void platform_poll(void)                 /* one call = one millisecond */
             write_ppm(fm1_ms);
         } else if (script[step].smk == HS_VOICES) {
             host_voices();
+        } else if (script[step].smk == HS_STEPS) {
+            host_steps();
         } else if (script[step].smk) {
 #if BOARD_SMK37
             static uint32_t vel = 100;

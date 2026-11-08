@@ -1,0 +1,7 @@
+# SEQ: track A's LENGTH to 0 (off), K3 away and back: "TRACK A OFF: K7 = ON" (20 characters) fits its buffer (ASan: sanitize.sh)
+3000 btn 15
+3300 enc 6 -20
+3600 enc 2 1
+3900 enc 2 -1
+4200 dump
+4300 end

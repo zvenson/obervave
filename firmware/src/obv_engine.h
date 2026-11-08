@@ -785,7 +785,7 @@ static void engine_audio(int32_t *out, uint32_t n)
         gl = gl > 4096 ? 4096 : gl; gr = gr > 4096 ? 4096 : gr;
         sc = ctl_mix_cho[p]; sd = ctl_mix_dly[p]; sr = ctl_mix_rev[p]; sv = ctl_mix_drv[p];
         {
-        int32_t g = g0 << 8, dg = ((mix_g[p] - g0) << 8) / (int32_t)n;   /* (the level glides over the half, Q8) */
+        int32_t g = g0 * 256, dg = (mix_g[p] - g0) * 256 / (int32_t)n;   /* (the level glides over the half, Q8) */
         uint32_t pk = 0;
         for (i = 0; i < n; i++, g += dg) {
             int32_t l = (int32_t)(((int64_t)bus[p][2u * i] * (g >> 8) >> 12) * gl >> 12), r = (int32_t)(((int64_t)bus[p][2u * i + 1u] * (g >> 8) >> 12) * gr >> 12);

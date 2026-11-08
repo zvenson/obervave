@@ -170,8 +170,8 @@ static inline void rev_tick(int32_t in)
       - line_read(&rv_d1, RVL(1990)) - line_read(&rv_ap2, RVL(187)) - line_read(&rv_d2, RVL(1066));
     b = line_read(&rv_d1, RVL(353)) + line_read(&rv_d1, RVL(3627)) - line_read(&rv_ap2, RVL(1228)) + line_read(&rv_d2, RVL(2673))
       - line_read(&rv_d3, RVL(2111)) - line_read(&rv_ap4, RVL(335)) - line_read(&rv_d4, RVL(121));
-    rv_yl = (a * 19661) >> 15;
-    rv_yr = (b * 19661) >> 15;
+    rv_yl = (int32_t)(((int64_t)a * 19661) >> 15);   /* (seven full taps x 0.6 passed 2^31 and wrapped: 64-bit) */
+    rv_yr = (int32_t)(((int64_t)b * 19661) >> 15);
 }
 
 /* the three effects side by side, each fed by its send bus; out gets their returns, MIX = the return's level.
