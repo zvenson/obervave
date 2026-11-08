@@ -408,6 +408,7 @@ void fm1_timer5_irq(void)
 extern void isr_timer5(void);
 
 /* ---- the sound: ALNK0 I2S, two halves; the app renders, the MASTER knob scales, Q15 -> 24 bit (-6 dBFS ceiling) */
+#include "master_gain.h"
 static int32_t abuf[2u * HALF_WORDS] __attribute__((aligned(4)));
 static volatile int32_t master_q12 = 2048;
 static void app_audio(int32_t *out, uint32_t n);
@@ -426,9 +427,11 @@ void fm1_alnk0_irq(void)                       /* via isr_alnk0 (hal/fm1_isr.S) 
             o[i] = 0;
         UAC_ONLY(uac_render_start());
         app_audio(o, HALF_FRAMES);
-        for (i = 0; i < HALF_WORDS; i++) {
-            int32_t v = (o[i] * master_q12) >> 12;
-            o[i] = v > 32767 ? 32767 : v < -32767 ? -32767 : v;
+        {
+            static int32_t master_last = 2048;  /* (the gain glides from the last half's: no click a knob step) */
+            int32_t m = master_q12;
+            master_gain_apply(o, HALF_FRAMES, master_last, m);
+            master_last = m;
         }
         for (b = 0; b < HALF_FRAMES; b += 32u)
             UAC_ONLY(uac_tap(o + 2u * b, 32u));   /* the computer records what the speaker plays */

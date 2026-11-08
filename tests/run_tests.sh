@@ -27,6 +27,9 @@ run "SMK-37 flash map: settings, patterns, owner tag in the store; never the hea
 $CC -o "$OUT/smk_wheel_test" tests/smk_wheel_test.c
 run "SMK-37 pitch wheel: the bend is back to 0 at rest, however slowly the wheel was moved" "$OUT/smk_wheel_test"
 
+$CC -o "$OUT/master_gain_test" tests/master_gain_test.c
+run "MASTER gain: steady as before, a glide when the level moves (no click a knob step)" "$OUT/master_gain_test"
+
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry (FM-1)" "$OUT/ota_test" build/obervave.fwsc
 head -c 60000 build/obervave.bin > "$OUT/old_app.bin"
