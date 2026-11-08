@@ -30,6 +30,9 @@ run "SMK-37 pitch wheel: the bend is back to 0 at rest, however slowly the wheel
 $CC -o "$OUT/master_gain_test" tests/master_gain_test.c
 run "MASTER gain: steady as before, a glide when the level moves (no click a knob step)" "$OUT/master_gain_test"
 
+$CC -o "$OUT/cpu_meter_test" tests/cpu_meter_test.c
+run "CPU meter: a slow half held 2 s on the GLOBAL page, the late halves counted" "$OUT/cpu_meter_test"
+
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry (FM-1)" "$OUT/ota_test" build/obervave.fwsc
 head -c 60000 build/obervave.bin > "$OUT/old_app.bin"
