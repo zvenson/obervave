@@ -22,6 +22,7 @@ run "FM-1 app on the host: the default script plays, screens and sound" sh tests
 run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_host.sh
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
 run "flash saves wait for real silence (an erase stops the audio ~50 ms): effect tails too, never lost" python3 tests/quiet_save_test.py
+run "keys held through a program change to MONO / UNISON / the arp: let go, no note hangs" python3 tests/held_switch_test.py
 
 $CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test.c
 run "SMK-37 flash map: settings, patterns, owner tag in the store; never the head, BTIF/USRTRIM, USR, key_mac" "$OUT/smk_flash_test"

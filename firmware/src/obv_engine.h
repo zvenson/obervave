@@ -285,8 +285,10 @@ static void voice_release(uint32_t part, uint32_t note, uint32_t from_arp)
                 if (!pv[P_GLIDE]) w->pitch16 = w->target16;
             }
             pt[part].last_pitch16 = v0->target16;
+            return;
         }
-        return;
+        /* no hand-over: on as below. A key let go that the group does not sound finds no voice there; one struck before
+         * the program became MONO / UNISON (a POLY chord held through the change) is ended, not left hanging */
     }
     for (v = 0; v < NV; v++)
         if (vc[v].gate && vc[v].note == note && vc[v].part == part) vc[v].gate = 0;

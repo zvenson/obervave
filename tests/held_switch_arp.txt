@@ -1,0 +1,7 @@
+# held notes across a program change (arp): every key let go must end its note (tests/held_switch_test.py)
+3000 midi 0xC0 1 0
+3500 vel 100
+3500 keys 0x4880
+4500 midi 0xC0 0 0
+5000 keys 0
+11000 end
