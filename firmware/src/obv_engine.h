@@ -618,7 +618,7 @@ static void block_globals(part_t *g)            /* a sound's derived numbers, on
 
 static inline uint32_t pw_mod(uint32_t base, int32_t mod)
 {
-    int64_t p = (int64_t)base + ((int64_t)mod << 8);
+    int64_t p = (int64_t)base + (int64_t)mod * 256;
     if (p < (1 << 26)) p = 1 << 26;
     if (p > (int64_t)0xFFFFFFFFu - (1 << 26)) p = (int64_t)0xFFFFFFFFu - (1 << 26);
     return (uint32_t)p;
@@ -830,12 +830,23 @@ static void engine_audio(int32_t *out, uint32_t n)
     }
 }
 
-static int engine_quiet(void)                   /* nothing sounds: a flash erase is safe */
+/* nothing sounds: a flash erase is safe (it stops the audio ~50 ms a sector: heard as a crackle over anything still
+ * sounding). The voices idle is not enough: a delay or reverb tail still rings, and a short release goes idle between
+ * two staccato notes. So the output itself must have stayed under ~-60 dBFS for QUIET_MS too; a tail that never gets
+ * there (the delay's FEEDBK at 127 keeps a residue going) is taken under ~-36 dBFS once the voices have been idle
+ * QUIET_WAIT_MS, so a save is put off, never lost */
+#define QUIET_MS 300u
+#define QUIET_WAIT_MS 20000u
+static uint32_t quiet_idle_t, quiet_idle;
+static int engine_quiet(void)
 {
     uint32_t v;
     for (v = 0; v < NV; v++)
-        if (vc[v].ae.stage != E_IDLE || vc[v].gate) return 0;
-    return nq_r == nq_w;
+        if (vc[v].ae.stage != E_IDLE || vc[v].gate) { quiet_idle = 0; return 0; }
+    if (nq_r != nq_w) { quiet_idle = 0; return 0; }
+    if (!quiet_idle) { quiet_idle = 1; quiet_idle_t = fm1_ms; }
+    if (fm1_ms - eng_loud_ms >= QUIET_MS) return 1;
+    return fm1_ms - quiet_idle_t >= QUIET_WAIT_MS && fm1_ms - eng_soft_ms >= QUIET_MS;
 }
 
 static void engine_init(void)

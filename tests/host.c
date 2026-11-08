@@ -133,6 +133,7 @@ static int settings_load(void *p, uint32_t n)
 }
 static int settings_save(const void *p, uint32_t n)
 {
+    if (getenv("OBV_SAVE_LOG")) fprintf(stderr, "SAVE SETTINGS %u\n", (unsigned)fm1_ms);   /* (tests/quiet_save_test.py) */
     host_store[0] = 1;
     memcpy(host_store + 4, p, n);
     printf("%6u ms  settings saved (%u B)\n", fm1_ms, n);
@@ -184,6 +185,7 @@ static int slot_load(uint32_t i, void *a, uint32_t na, void *b, uint32_t nb)
 }
 static int slot_save(uint32_t i, const void *a, uint32_t na, const void *b, uint32_t nb)
 {
+    if (getenv("OBV_SAVE_LOG")) fprintf(stderr, "SAVE SLOT %u\n", (unsigned)fm1_ms);   /* (tests/quiet_save_test.py) */
     if (i >= NBLOB || na + nb > SLOT_MAX) return -1;
     host_slot[i][0] = 1; memcpy(host_slot[i] + 4, &na, 4); memcpy(host_slot[i] + 8, &nb, 4);
     memcpy(host_slot[i] + 16, a, na);

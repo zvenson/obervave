@@ -25,8 +25,6 @@
 #include "smk_wheel.h"
 
 static const uint8_t SMK_WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};   /* step -> its white key */
-#define SMK_TRK_A RGB(96, 176, 255)             /* track A: the screen's light blue accent (C_AMBER) */
-#define SMK_TRK_B RGB(226, 232, 240)            /* track B: the screen's legends (C_CREAM) */
 
 static uint32_t smk_bank;                       /* FADER BANK: 0 = A (PERFORM), 1 = B (effects, MASTER) */
 static uint8_t smk_fad_last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -230,7 +228,7 @@ static uint16_t smk_dim(uint16_t c, uint32_t k)   /* c * k / 256 */
 static void smk_leds(void)
 {
     uint32_t t = seq_trk, len = pat.trk[t].len, w0 = seq_pg[t] * 16u, ph = len ? ui_seq_pos[t] % len : 0u, p;
-    uint16_t tc = t ? SMK_TRK_B : SMK_TRK_A;
+    uint16_t tc = C_TRKC[t % 4u];                /* the track's colour, as on the screen (A blue, B orange, C green, D pink) */
     for (p = 0; p < 16u; p++) {
         uint32_t n = w0 + p, q, live_on = 0;
         uint16_t c = 0;

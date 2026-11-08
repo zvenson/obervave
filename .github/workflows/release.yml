@@ -46,10 +46,11 @@ jobs:
           BOARD=smk37 MODEL=mke sh build.sh
           sh build.sh
 
-      # (not blocking for now: at the 18.10.2026 state some host tests are stale, see the log; to be fixed, then blocking)
       - name: Host tests
-        continue-on-error: true
         run: sh tests/run_tests.sh
+
+      - name: Sanitizers (ASan + UBSan, every script, both boards)
+        run: sh tests/sanitize.sh
 
       - name: Release packages (tags only)
         if: github.ref_type == 'tag'

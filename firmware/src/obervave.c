@@ -16,15 +16,24 @@
  * Integers only (no FPU, no 64-bit division); tests/host.c runs this on a computer. */
 static void app_idle(void);
 #define LCD_IDLE() app_idle()                   /* (lcd.c: while the DMA runs) */
+#ifndef OBV_HOST
 #define LCD_MIRROR 1                            /* (lcd.c: what is painted also goes to FM-1 Mirror – obv_mirror.h) */
+#endif
 #include "platform.c"
+#ifndef OBV_HOST
 #include "obv_mirror.h"
+#else
+static int mirror_poll(void) { return 0; }      /* (the host has no USB: no mirror) */
+#endif
 #include "obv_dsp.h"
 #include "obv_params.h"
 #include "obv_fx.h"
 #include "obv_engine.h"
 #include "obv_seq.h"
 #include "obv_patches.h"
+#include "cpu_meter.h"
+
+static cpu_meter_t cpu_m;                     /* the GLOBAL page: the slowest half of the last 2 s, the late ones */
 
 static void app_audio(int32_t *out, uint32_t n)
 {
@@ -34,6 +43,7 @@ static void app_audio(int32_t *out, uint32_t n)
     engine_audio(out, n);
 #ifndef OBV_HOST
     ui_render_us = (fm1_ticks() - t0) / FM1_TICKS_PER_US;
+    cpu_meter_add(&cpu_m, ui_render_us, fm1_ms);
 #endif
 }
 
@@ -900,8 +910,10 @@ static void draw_page(void)
             t = title;
         }
         {
-            static char cpu[24];                /* the GLOBAL page: the render time of an audio half (budget 5800 us), SYNC */
-            cpu[0] = 0; fmt_u(cpu, ui_render_us); scat(cpu, "us"); scat(cpu, set.sync_int ? " INT" : ctl_ext_quarter ? " CLK" : " AUTO");
+            static char cpu[24];                /* the GLOBAL page: the render time of an audio half (budget 5805 us), SYNC */
+            cpu[0] = 0; fmt_u(cpu, cpu_m.peak);   /* the slowest half of the last 2 s; "!N": N halves too late (crackles), 9 = 9+ */
+            if (cpu_m.over) { scat(cpu, "!"); fmt_u(cpu + slen(cpu), cpu_m.over > 9u ? 9u : cpu_m.over); } else scat(cpu, "us");
+            scat(cpu, set.sync_int ? " INT" : ctl_ext_quarter ? " CLK" : " AUTO");
             ui_page(t, k, save_armed ? "SAVE?" : seq_shown() && pat_edited ? "EDITED" : page == PG_GLOBAL && !layer ? cpu : 0);
         }
     }
