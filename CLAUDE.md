@@ -128,6 +128,25 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**Fixes, part 2 (2026-11-08, branch `notes-fixes`, after `fixes`; installed and played on the SMK-37 Elite):** state
+changing under held notes. Found by ear (a chord held from 02 to 03 hung) and then by two fuzzers.
+- **Hanging notes.** `voice_release` took the *current* program's mode: a POLY chord held into a MONO / UNISON program
+  took the legato path and returned without a release; now it falls through when there is no hand-over, and a hand-over
+  ends the POLY voice of that note left from before. The track of a note was one per note number (`note_part[128]`)
+  for the keys, the outer keys, the pads and MIDI together: the same note on two tracks (K3 turned while held, MIDI)
+  sent one release to the other track. Each source now keeps its own (`held_part`, `smk_ext_part`, `smk_live_part`,
+  `midi_part[16][128]`). The REC pads let go of every note of the pen chord (the inner loop reused the chord's `q`).
+- **Recording across a K3 change:** `rec_open` is by the note heard and keeps its track and stored note; the end and the
+  ties went to the track picked at the let go (and a transpose change left the note open).
+- **The panel under ASan + UBSan:** `trk_select` wrote one byte past `msg[20]` on every pick of an empty track; the SVF's
+  and the plate's products passed 2^31 driven hard (64-bit now, bit-identical below); a negative shift in the mixer.
+- Tests: `tests/hang_test.py` (tests/hang/*), `tests/held_switch_test.py`, `tests/mono_legato.txt` (legato bit-identical),
+  `tests/rec_track_test.py`, `tests/fuzz_notes.py` (random bursts of keys, MIDI, programs, modes, tracks, layers,
+  PLAY / REC; rule: all let go = nothing gated; 1600 clean), `tests/fuzz_ui.py` (the whole panel under the sanitizers,
+  320 x 600 events clean). Host scripts can print `voices` and `steps`.
+- Open, a design question: README says a set MIDI channel plays track A; its notes play K3's track (its program
+  changes go to A).
+
 **Fixes (2026-11-08, branch `fixes`, a PR by a user of an SMK-37 Elite; installed and heard on that unit):**
 - **Flash saves wait for real silence.** `engine_quiet()` looked at the voices only: settings / program / pattern saves
   came in delay and reverb tails and between staccato notes (a short release goes idle in a 50 ms gap), and an erase
