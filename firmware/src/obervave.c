@@ -16,9 +16,15 @@
  * Integers only (no FPU, no 64-bit division); tests/host.c runs this on a computer. */
 static void app_idle(void);
 #define LCD_IDLE() app_idle()                   /* (lcd.c: while the DMA runs) */
+#ifndef OBV_HOST
 #define LCD_MIRROR 1                            /* (lcd.c: what is painted also goes to FM-1 Mirror – obv_mirror.h) */
+#endif
 #include "platform.c"
+#ifndef OBV_HOST
 #include "obv_mirror.h"
+#else
+static int mirror_poll(void) { return 0; }      /* (the host has no USB: no mirror) */
+#endif
 #include "obv_dsp.h"
 #include "obv_params.h"
 #include "obv_fx.h"
