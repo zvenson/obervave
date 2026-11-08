@@ -61,7 +61,7 @@ for m in ":SMK-37 Pro_95" "-elite:SMK-37 Elite_95" "-mke:MKE-P37_95"; do
     for f in build/obervave*-smk37${m%%:*}.fwsc; do
         [ -f "$f" ] || continue
         found=1
-        v=$(echo "$f" | sed -n 's/.*obervave-[0-9]\.\([0-9]\).*/\1/p'); v=${v:-0}
+        v=$(echo "$f" | sed -n 's/.*obervave-\([0-9]\)\.\([0-9]\).*/\1\2/p'); v=${v:-00}   # (95XY since 3.0.1; 00: a dev build)
         run "SMK-37 package $f: layout, identity ${m#*:}$v, the loader marker" python3 tests/smk_pkg_test.py "$f" "${m#*:}$v"
     done
 done
