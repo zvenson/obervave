@@ -1,0 +1,21 @@
+# SMK-37: each track's set steps light in that track's colour on the screen (A blue, B orange, C green, D pink)
+3000 vel 100
+3000 keys 0x80
+3200 keys 0
+3400 pad 0 100
+3500 pad 0 0
+3600 dump
+# K3 (ALGORITHM): track B, C, D, a step on each
+3800 enc 2 1
+4000 pad 0 100
+4100 pad 0 0
+4200 dump
+4400 enc 2 1
+4600 pad 0 100
+4700 pad 0 0
+4800 dump
+5000 enc 2 1
+5200 pad 0 100
+5300 pad 0 0
+5400 dump
+5500 end
