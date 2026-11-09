@@ -126,6 +126,14 @@ track off.
 - **Saving:** SAVE in the sequencer asks `SAVE PATTERN?`, SAVE again saves (playing: at the stop). A pattern also
   saves itself 3 s after a change once the sequencer stands (the `*` after `PAT 1` goes); its sounds and mix with it.
 
+## Backup
+
+Your programs, patterns and settings in a file on your computer, and back – before you try other firmwares, which may
+use the same flash: [thefirmwarehub.com/tools/obervave-backup](https://thefirmwarehub.com/tools/obervave-backup/)
+(Chrome or Edge, OberVave 3.5 or newer). The page reads only OberVave's own storage over USB; a restore checks the file,
+writes it, reads it back and starts OberVave again. Asked for by [dmochen](https://github.com/dmochen)
+([#15](https://github.com/zvenson/obervave/issues/15)). The protocol is in `firmware/src/obv_backup.h`.
+
 ## Build and run
 
 OberVave is built on [Dinghy](https://github.com/zvenson/dinghy), whose platform (boot, USB, updates, audio, settings)

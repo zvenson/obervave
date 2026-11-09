@@ -1949,6 +1949,7 @@ static void trk_clear(void)
     dirty_tags = dirty_steps = dirty_page = 1;
 }
 #include "obv_link.h"                          /* (3.4) VIBE LINK: the FM-1 as the VIBE's controller */
+#include "obv_backup.h"                        /* (3.5) the backup page: programs, patterns, settings to a file and back */
 static void app_main(void)
 {
     uint32_t k, i, t_led = 0, t_scope = 0, t_page = 0, t_hdr = 0, leds_q = 1;
@@ -2035,6 +2036,7 @@ static void app_main(void)
             lcd_fill(0, 0, 240, 240, C_PANEL);
             dirty_hdr = dirty_page = dirty_steps = dirty_tags = 1; hints_key = leds_q = 0xFFFFFFFFu; scope_state = 1; t_scope = 0;
         }
+        if (backup_poll()) { platform_poll(); continue; }   /* (3.5) a restore from the backup page: nothing else runs */
         platform_poll();
         if (set.link == 2u) { link_control(); continue; }   /* (3.4) VIBE LINK CONTROL: the panel is the VIBE's */
 

@@ -27,6 +27,8 @@ run "SMK-37 flash map: settings, patterns, owner tag in the store; never the hea
 $CC -o "$OUT/smk_wheel_test" tests/smk_wheel_test.c
 run "SMK-37 pitch wheel: the bend is back to 0 at rest, however slowly the wheel was moved" "$OUT/smk_wheel_test"
 
+$CC -Ifirmware/src -o "$OUT/backup_test" tests/backup_test.c
+run "backup page's protocol (3.5): HELLO, READ, ERASE, WRITE, DONE, only OberVave's own regions, pack7" "$OUT/backup_test"
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry (FM-1)" "$OUT/ota_test" build/obervave.fwsc
 head -c 60000 build/obervave.bin > "$OUT/old_app.bin"
