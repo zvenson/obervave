@@ -128,6 +128,20 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**SMK-37 performance (2026-11-09, branch `smk-features`, after `notes-fixes`; played on the SMK-37 Elite):**
+- **Knob speed** in detents a second (`enc_accel`: >= 25 over at most 150 ms), not "more than one detent this
+  main-loop pass": a pass is a few ms to tens (the screen), so a gentle turn in a long pass jumped x3 (LENGTH a page
+  of 16) and a real spin in short passes never sped up. tests/knob_speed_test.py.
+- **The pads show and play the GLOBE and BT layers** (the FM-1 shows them on its key LEDs; the SMK-37 has none).
+  GLOBE as channel strips (`SMK_GLO_PAD`): top 1-4 start / stop A-D, 5-8 solo; bottom 9-12 mute, 16 tap. Start and
+  solo in the track's colour, mute the red row; lit: playing in its colour (half when unheard: muted or soloed out),
+  soloed white, muted bright red (half while a solo holds the mutes, as `mix_apply`: a solo outranks every mute).
+  BT: pads 1-8 the patterns (now bright, next blinking, saved dim). The keys keep the FM-1's layout.
+- **The faders record** while REC records, as the knobs (`auto_rec` from `smk_faders`).
+- Tests: tests/smk/layers.txt, fader_rec.txt (smk_ui_test.py); the host `steps` dump lists the knob lanes.
+- Tried and left: "tap = toggle, hold = inspect" for the step pads (a drag over the pads ties every other step via
+  hold + later step; holding a set pad to look at it clears it). The user prefers to tap one pad at a time.
+
 **Fixes, part 2 (2026-11-08, branch `notes-fixes`, after `fixes`; installed and played on the SMK-37 Elite):** state
 changing under held notes. Found by ear (a chord held from 02 to 03 hung) and then by two fuzzers.
 - **Hanging notes.** `voice_release` took the *current* program's mode: a POLY chord held into a MONO / UNISON program
