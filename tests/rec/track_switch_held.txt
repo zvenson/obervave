@@ -1,0 +1,11 @@
+# REC: C4 held on track A, K3 to B while it is held, let go ~1 s later: the note and its length belong to A, B stays empty
+# expect A len=16 1:60/T 2:60/T 3:60/T 4:60/T 5:60/T 6:60/T 7:60/T 8:60/T 9:60/110
+# expect B len=16
+3000 midi 0xC0 1 0
+3200 btn 17
+3500 keys 0x80
+3700 enc 2 1
+4600 keys 0
+5200 btn 16
+5400 steps
+5450 end

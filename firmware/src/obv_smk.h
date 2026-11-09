@@ -25,13 +25,13 @@
 #include "smk_wheel.h"
 
 static const uint8_t SMK_WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};   /* step -> its white key */
-#define SMK_TRK_A RGB(96, 176, 255)             /* track A: the screen's light blue accent (C_AMBER) */
-#define SMK_TRK_B RGB(226, 232, 240)            /* track B: the screen's legends (C_CREAM) */
 
 static uint32_t smk_bank;                       /* FADER BANK: 0 = A (PERFORM), 1 = B (effects, MASTER) */
 static uint8_t smk_fad_last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 static uint8_t smk_live[16][SEQ_CHORD];         /* the notes a pad plays live (REC on): its release ends them */
+static uint8_t smk_live_part[16];               /* ... on the track they began on */
 static uint8_t smk_ext_note[FM1_NKEY], smk_ext_erase[FM1_NKEY];   /* an outer key's note; 1: it erases (EDIT held) */
+static uint8_t smk_ext_part[FM1_NKEY];          /* an outer key's track, from its note on */
 static uint32_t smk_view_prev;
 static const char *smk_ov1;                     /* the overlay under the page (faders, banks, step pages), 1.5 s */
 static char smk_ov2[40];
@@ -80,11 +80,12 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
         uint32_t p = ((uint32_t)e >> 8) & 15u, vel = (uint32_t)e & 0xFFu, k = SMK_WK[p], q;
         if (vel) {
             if (rec) {                              /* REC on: the pad plays the pen chord, recorded as the keys are */
+                smk_live_part[p] = (uint8_t)(seq_trk % NTRK);
                 for (q = 0; q < SEQ_CHORD; q++) {
                     uint32_t n = q < (pen_n ? pen_n : 1u) ? (pen_n ? pen_chord[q] : pen) : 0u;
                     smk_live[p][q] = (uint8_t)n;
                     if (!n) continue;
-                    play_note(1, n, vel); midi_send(0x90u | MIDI_OUT_CH, n, vel);
+                    play_note(1, n, vel, smk_live_part[p]); midi_send(0x90u | MIDI_OUT_CH, n, vel);
                     if (rec_keys()) rec_note(1, n, vel);
                 }
             } else {                                /* a step: as its white key in the SEQ layer */
@@ -103,12 +104,13 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
             }
         } else {
             for (q = 0; q < SEQ_CHORD; q++) {
-                uint32_t n = smk_live[p][q];
+                uint32_t n = smk_live[p][q], t;
                 smk_live[p][q] = 0;
                 if (!n) continue;
-                play_note(0, n, 0); midi_send(0x80u | MIDI_OUT_CH, n, 0);
+                play_note(0, n, 0, smk_live_part[p]); midi_send(0x80u | MIDI_OUT_CH, n, 0);
                 if (rec_keys()) rec_note(0, n, 0);
-                for (q = 0; q < NTRK; q++) ctl_live_hold[q][n >> 5 & 3u] &= ~(1u << (n & 31u));   /* (let go: the sequencer's) */
+                for (t = 0; t < NTRK; t++) ctl_live_hold[t][n >> 5 & 3u] &= ~(1u << (n & 31u));   /* (let go: the sequencer's; its own
+                                                                                                      * counter: q went on to the chord's end) */
             }
         }
         *dirty = 1;
@@ -126,7 +128,8 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
                 say("ERASED");
             } else {
                 midi_send(0x90u | MIDI_OUT_CH, n, vel);
-                note_in(1, n, vel);
+                smk_ext_part[kk] = (uint8_t)(seq_trk % NTRK);
+                note_in(1, n, vel, smk_ext_part[kk]);
             }
         } else if (smk_ext_note[kk]) {
             uint32_t n = smk_ext_note[kk];
@@ -134,7 +137,7 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
             if (smk_ext_erase[kk]) erase_on[(uint32_t)clampi((int32_t)n - pat.trk[seq_trk].transp, 1, 127)] = 0;
             else {
                 midi_send(0x80u | MIDI_OUT_CH, n, 0);
-                note_in(0, n, 0);
+                note_in(0, n, 0, smk_ext_part[kk]);
             }
         }
         if (notes_shown()) *dirty = 1;          /* (a note alone changes no knob page) */
@@ -230,7 +233,7 @@ static uint16_t smk_dim(uint16_t c, uint32_t k)   /* c * k / 256 */
 static void smk_leds(void)
 {
     uint32_t t = seq_trk, len = pat.trk[t].len, w0 = seq_pg[t] * 16u, ph = len ? ui_seq_pos[t] % len : 0u, p;
-    uint16_t tc = t ? SMK_TRK_B : SMK_TRK_A;
+    uint16_t tc = C_TRKC[t % 4u];                /* the track's colour, as on the screen (A blue, B orange, C green, D pink) */
     for (p = 0; p < 16u; p++) {
         uint32_t n = w0 + p, q, live_on = 0;
         uint16_t c = 0;

@@ -60,9 +60,9 @@ Everything from the FM-1 keeps its job, on the SMK button with the same meaning;
 | Keys F3 .. G5 (the middle 27) | the FM-1's 27 keys | notes; in the layers steps, erase, mute / solo / tap, patterns, as on the FM-1 |
 | Keys C3 .. E3, G#5 .. C6 | more keys | the notes below F3 and above G5 (OCTAVE moves them too); PARA held: erase that note |
 | Velocity | | every key and pad, from your unit's factory curves (the programs' VEL>AMP and VEL>FLT set how much it matters) |
-| **K1** | MASTER | the output level (an endless knob: 24 steps of 1024 a click) |
+| **K1** | MASTER | the output level (an endless knob: 24 steps of 1024 a click; the level glides, no click while a note sounds) |
 | **K2** | SELECT | the tempo |
-| **K3** | ALGORITHM | track A / B |
+| **K3** | ALGORITHM | track A-D |
 | **K4** | PRESETS | the program; in the sequencer: the pattern (playing: from the loop's end) |
 | **K5 · K6 · K7 · K8** | KNOB 1 · 2 · 3 · 4 | the page's four knobs, left to right as on the screen |
 | **PATCH** | HOME | PERFORM; held with a layer: lock it |
@@ -76,7 +76,7 @@ Everything from the FM-1 keeps its job, on the SMK button with the same meaning;
 | **SEQ PLAY**, **SEQ REC** | PLAY, REC | start / stop; record (held 2 s: clear the track) |
 | **OCTAVE- / OCTAVE+** | OCT- / OCT+ | the octave (both: 0); SEQ held: step page; PARA held: undo / redo |
 | **16 pads** | | the step sequencer, see below |
-| **< / >** | | the step page of the track (1-8); the LEDs light where there is another page |
+| **< / >** | | the step page of the track (up to 16: 256 steps); the LEDs light where there is another page |
 | **4 faders** | | two banks, see below |
 | **FADER BANK** | | fader bank A / B (its LED lit on B) |
 | **Pitch wheel** | | bend, ±2 semitones (the program's BEND on the OUTPUT page), every voice |
@@ -93,12 +93,12 @@ The 16 pads are the 16 steps of the selected track's page, in reading order: the
 - **A lit pad** pressed and let go clears its step.
 - **Hold a pad** and the screen shows its step: **K5-K8** set NOTE, LEVEL, RATCHET and GATE. Hold a pad and tap a
   later one: one long note from the first to the second.
-- **< >** turn the page (as OCTAVE- / OCTAVE+ with SEQ held, or the black keys F#3 .. A#4); **K3** picks track A
-  or B. A track longer than 16 steps has a page per 16 (SEQ held + K8 sets the length).
+- **< >** turn the page (as OCTAVE- / OCTAVE+ with SEQ held; the black keys F#3 .. A#4 reach pages 1-8); **K3** picks
+  track A-D. A track longer than 16 steps has a page per 16, up to 16 pages (SEQ held + K8 sets the length).
 - **While REC is on** (armed or recording) the pads play: each pad plays the last note or chord at its velocity,
   and it is recorded like the keys.
 
-Lights: set steps in the track's colour (A light blue, B white), dimmer when a step plays by chance; the playhead
+Lights: set steps in the track's colour (A blue, B orange, C green, D pink, as on the screen), dimmer when a step plays by chance; the playhead
 bright (red while recording); the held step red; beats 1, 5, 9, 13 glow faintly; past the track's length dark.
 
 ### The faders
@@ -116,6 +116,10 @@ shows the value.
 Hold **KNOB BANK**: one screen with what the keyboard reads (the flash chip, whether your calibration was found,
 the ADC, faders, wheels, buttons, the last key with its velocity, and each pad's reading above its resting level).
 Let go and you are back. If something does not respond, a photo of this screen helps.
+
+**The CPU time** (GLOBE tapped, in the page's title) is the slowest audio half of the last 2 s, in us (a half lasts
+5805). `!N` instead of `us`: N halves were rendered too late since power-on (9 = 9 or more), each one a crackle; turn
+an effect down (the reverb costs the most) and tell us which sound did it.
 
 ## What the SMK-37 cannot do
 

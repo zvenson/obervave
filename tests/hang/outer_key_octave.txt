@@ -1,0 +1,10 @@
+# D#4 held, OCT+, K3 to B, the outer key D#3 (now D#4 too) on B, all let go: nothing may hang (tests/hang_test.py)
+3000 midi 0xC0 1 0
+3300 keys 0x400
+3500 btn 5
+3700 enc 2 1
+4000 xkey 3 90
+4400 keys 0
+4400 xkey 3 0
+6400 voices
+6450 end

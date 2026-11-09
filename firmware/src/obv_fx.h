@@ -170,8 +170,8 @@ static inline void rev_tick(int32_t in)
       - line_read(&rv_d1, RVL(1990)) - line_read(&rv_ap2, RVL(187)) - line_read(&rv_d2, RVL(1066));
     b = line_read(&rv_d1, RVL(353)) + line_read(&rv_d1, RVL(3627)) - line_read(&rv_ap2, RVL(1228)) + line_read(&rv_d2, RVL(2673))
       - line_read(&rv_d3, RVL(2111)) - line_read(&rv_ap4, RVL(335)) - line_read(&rv_d4, RVL(121));
-    rv_yl = (a * 19661) >> 15;
-    rv_yr = (b * 19661) >> 15;
+    rv_yl = (int32_t)(((int64_t)a * 19661) >> 15);   /* (seven full taps x 0.6 passed 2^31 and wrapped: 64-bit) */
+    rv_yr = (int32_t)(((int64_t)b * 19661) >> 15);
 }
 
 /* the three effects side by side, each fed by its send bus; out gets their returns, MIX = the return's level.
@@ -213,6 +213,9 @@ static void drive_process(int32_t *out, const int32_t *vs, uint32_t n)
 static volatile uint8_t ctl_m_vol = 100, ctl_m_dj = 64, ctl_m_drive, ctl_m_comp;   /* (main loop writes) volume (100 =
                                                  * unity), DJ filter (64 off, below LP, above HP), drive, compressor */
 static volatile uint32_t ui_out_peak;           /* the output's peak, for the MASTER row's meter (the UI takes it) */
+#define QUIET_PEAK 32u                          /* ~-60 dBFS: below it the output counts as silent (engine_quiet) */
+#define SOFT_PEAK 512u                          /* ~-36 dBFS: quiet enough once a save has waited long (a tail that never dies) */
+static volatile uint32_t eng_loud_ms, eng_soft_ms;   /* (ISR) when the output was last above QUIET_PEAK / SOFT_PEAK */
 static svf_coef_t m_c;
 static svf_state_t m_fl, m_fr;
 static int32_t m_dj_was = 0x7FFF, m_env, m_g = 1 << 14;   /* m_env: the level follower Q23; m_g: the gain now, Q14 */
@@ -282,6 +285,8 @@ static void master_process(int32_t *out, uint32_t n)
         }
     }
     if (pk > ui_out_peak) ui_out_peak = pk;
+    if (pk > QUIET_PEAK) eng_loud_ms = fm1_ms;
+    if (pk > SOFT_PEAK) eng_soft_ms = fm1_ms;
 }
 
 static void fx_process(int32_t *out, const int32_t *cs, const int32_t *ds, const int32_t *rs, uint32_t n)

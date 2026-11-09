@@ -1,0 +1,9 @@
+# OMNI: note 59 on channel 3 (track A), K3 to B, note 59 on channel 2 (B), both let go: nothing may hang
+3000 midi 0xC0 1 0
+3400 midi 0x92 59 82
+3700 enc 2 1
+4500 midi 0x91 59 107
+4900 midi 0x81 59 0
+4900 midi 0x82 59 0
+6900 voices
+6950 end

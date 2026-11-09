@@ -21,11 +21,23 @@ run() { echo "== $1"; shift; "$@" || fail=1; }
 run "FM-1 app on the host: the default script plays, screens and sound" sh tests/run_host.sh
 run "SMK-37 app on the host: the default script" env BOARD=smk37 sh tests/run_host.sh
 run "SMK-37 mapping: step pads, REC pads, fader banks, wheels, outer keys" python3 tests/smk_ui_test.py
+run "flash saves wait for real silence (an erase stops the audio ~50 ms): effect tails too, never lost" python3 tests/quiet_save_test.py
+run "keys held through a program change to MONO / UNISON / the arp: let go, no note hangs" python3 tests/held_switch_test.py
+run "hanging notes: the repros (tracks, octave, MIDI channels, MONO hand-over, REC pads)" python3 tests/hang_test.py
+run "recording: a note held through a K3 track change ends on the track it began on" python3 tests/rec_track_test.py
+run "the whole panel fuzzed under ASan + UBSan (both boards): no memory error, no overflow" python3 tests/fuzz_ui.py --n 12 --seed 11
+run "hanging notes, fuzzed: 150 random bursts of keys, MIDI, programs, modes, tracks, layers, PLAY / REC" python3 tests/fuzz_notes.py --n 150 --seed 7 --transport
 
 $CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test.c
 run "SMK-37 flash map: settings, patterns, owner tag in the store; never the head, BTIF/USRTRIM, USR, key_mac" "$OUT/smk_flash_test"
 $CC -o "$OUT/smk_wheel_test" tests/smk_wheel_test.c
 run "SMK-37 pitch wheel: the bend is back to 0 at rest, however slowly the wheel was moved" "$OUT/smk_wheel_test"
+
+$CC -o "$OUT/master_gain_test" tests/master_gain_test.c
+run "MASTER gain: steady as before, a glide when the level moves (no click a knob step)" "$OUT/master_gain_test"
+
+$CC -o "$OUT/cpu_meter_test" tests/cpu_meter_test.c
+run "CPU meter: a slow half held 2 s on the GLOBAL page, the late halves counted" "$OUT/cpu_meter_test"
 
 $CC -o "$OUT/ota_test" tests/ota_test.c
 run "M-UPGRADE entry (FM-1)" "$OUT/ota_test" build/obervave.fwsc
@@ -55,7 +67,7 @@ for m in ":SMK-37 Pro_95" "-elite:SMK-37 Elite_95" "-mke:MKE-P37_95"; do
     for f in build/obervave*-smk37${m%%:*}.fwsc; do
         [ -f "$f" ] || continue
         found=1
-        v=$(echo "$f" | sed -n 's/.*obervave-[0-9]\.\([0-9]\).*/\1/p'); v=${v:-0}
+        v=$(echo "$f" | sed -n 's/.*obervave-\([0-9]\)\.\([0-9]\).*/\1\2/p'); v=${v:-00}   # (95XY since 3.0.1; 00: a dev build)
         run "SMK-37 package $f: layout, identity ${m#*:}$v, the loader marker" python3 tests/smk_pkg_test.py "$f" "${m#*:}$v"
     done
 done

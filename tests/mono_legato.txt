@@ -1,0 +1,22 @@
+# MONO / UNISON legato (the hand-over must stay as it is): 03 SYNC LEAD, keys overlapped in every order, then 04 UNISON LD
+3000 midi 0xC0 2 0
+3500 midi 0x90 60 100
+3800 midi 0x90 64 100
+4100 midi 0x90 67 100
+4400 midi 0x80 67 0
+4700 midi 0x80 60 0
+5000 midi 0x90 62 100
+5300 midi 0x80 64 0
+5600 midi 0x80 62 0
+6200 midi 0x90 48 110
+6250 midi 0x90 50 110
+6300 midi 0x80 48 0
+6600 midi 0x80 50 0
+7000 midi 0xC0 3 0
+7500 midi 0x90 60 100
+7800 midi 0x90 64 100
+8100 midi 0x80 60 0
+8400 midi 0x90 67 100
+8700 midi 0x80 67 0
+9000 midi 0x80 64 0
+11000 end

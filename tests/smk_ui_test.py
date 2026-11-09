@@ -88,6 +88,15 @@ def main():
     st = state(d, 9200)
     check("the page moved under a held pad: let go, no step stays held", st["held"] == "-1" and st["view"] == "0", st)
 
+    print("== pads: each track in its own colour, as on the screen")
+    out, d = run("colors")
+    hues = {"A blue": lambda r, g, b: b >= 1.3 * r and b > g, "B orange": lambda r, g, b: r >= 1.3 * g and g >= 1.3 * b,
+            "C green": lambda r, g, b: g >= 1.3 * r and g >= 1.2 * b, "D pink": lambda r, g, b: r >= 1.3 * g and b >= 1.2 * g}
+    for t, (name, ok) in zip((3600, 4200, 4800, 5400), hues.items()):
+        st, p = state(d, t), pads(d, t)
+        check(f"track {name}: its set step lights in its colour", st["trk"] == str("ABCD".index(name[0])) and p[0] and
+              ok(*grb(p[0])), (st["trk"], f"{p[0]:06X}", grb(p[0])))
+
     print("== pads while REC is on: they play")
     out, d = run("rec")
     check("REC armed: a pad plays the pen (C4) at its velocity", "MIDI out 90 60 70" in out, out[-400:])
