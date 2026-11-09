@@ -29,7 +29,8 @@ static const uint8_t SMK_WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21,
  *     1-4  start / stop A-D      5-8   solo A-D
  *     9-12 mute A-D              13-15 -      16 tap tempo
  * Start and solo glow in the track's colour (a column is a track), mute is the red row; lit: playing in its colour
- * (blinking while it waits for the bar), soloed white, muted bright red. SMK_GLO_PAD: the pad's GLOBE key (glo_key: white key 1-4 start, 5-8 mute,
+ * (blinking while it waits for the bar; half when it plays unheard: muted or soloed out), soloed white, muted bright
+ * red (half while a solo puts the mutes on hold). SMK_GLO_PAD: the pad's GLOBE key (glo_key: white key 1-4 start, 5-8 mute,
  * 9-12 solo, 16 tap), -1 none */
 static const int8_t SMK_GLO_PAD[16] = {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, -1, -1, -1, 15};
 
@@ -260,14 +261,20 @@ static int32_t smk_layer_led(uint32_t p)
     uint32_t blink = (fm1_ms / 150u) & 1u;
     if (layer == L_GLO) {
         int32_t w = SMK_GLO_PAD[p & 15u];
-        uint32_t t = (uint32_t)w & 3u;
+        uint32_t t = (uint32_t)w & 3u, solo = set.mix_solo & 15u, muted = set.mix_mute >> t & 1u;
+        uint32_t heard = solo ? solo >> t & 1u : !muted;   /* (mix_apply: a solo outranks every mute) */
         uint16_t tc = C_TRKC[t];
         if (w < 0) return 0;
-        if (w < 4) {                            /* start / stop: playing in its colour, blinking while it waits */
+        if (w < 4) {                            /* start / stop: playing in its colour (half when muted or soloed out),
+                                                 * blinking while it waits */
             uint32_t on = ctl_seq_run && (ctl_trk_on >> t & 1u) && pat.trk[t].len, pend = trk_pending() >> t & 1u;
-            return pend ? (blink ? tc : smk_dim(tc, 24)) : on ? tc : smk_dim(tc, 24);
+            return pend ? (blink ? tc : smk_dim(tc, 24)) : on ? (heard ? tc : smk_dim(tc, 96)) : smk_dim(tc, 24);
         }
-        if (w < 8) return set.mix_mute >> t & 1u ? C_RED : smk_dim(C_RED, 18);   /* mute: the red row, bright when muted */
+        if (w < 8) {                            /* mute: the red row, bright when muted; a solo puts the mutes on hold:
+                                                 * the row dimmer, a mute half */
+            if (solo) return muted ? smk_dim(C_RED, 96) : smk_dim(C_RED, 6);
+            return muted ? C_RED : smk_dim(C_RED, 18);
+        }
         if (w < 12) return set.mix_solo >> t & 1u ? C_CREAM : smk_dim(tc, 24);   /* solo: white */
         return fm1_ms - beat_t < 90u && ctl_seq_run ? C_CREAM : smk_dim(C_CREAM, 10);   /* tap: the beat */
     }

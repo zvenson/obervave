@@ -106,13 +106,21 @@ def main():
           all(p[i] for i in list(range(12)) + [15]) and not any(p[i] for i in (12, 13, 14)) and all(red(p[i]) for i in range(8, 12))
           and p[0] == p[4] and p[1] == p[5], [f"{x:06X}" for x in p])
     q = pads(d, 3500)
-    check("GLOBE + pad 10: track B muted, its mute pad bright red", red(q[9]) and hue(q[9])[0] > 200 and hue(q[8])[0] < 60,
-          [f"{x:06X}" for x in q])
+    check("GLOBE + pad 10, then pad 6: B muted and soloed: its mute pad half red (the solo holds the mutes)",
+          red(q[9]) and 60 < hue(q[9])[0] < 200 and hue(q[8])[0] < 20, [f"{x:06X}" for x in q])
     check("GLOBE + pad 6: track B soloed, its solo pad white (not its colour, not the start pad's look)",
           min(hue(q[5])) > 180 and q[5] != q[1], [f"{x:06X}" for x in q])
     q, st = pads(d, 3900), state(d, 3900)
-    check("GLOBE + pad 2: track B started (the transport with it), its start pad bright in its colour",
-          st["run"] == "1" and sum(hue(q[1])) > 3 * sum(hue(p[1])) and not min(hue(q[1])) > 180, (st["run"], f"{p[1]:06X}", f"{q[1]:06X}"))
+    lum = lambda c: sum(hue(c))
+    check("GLOBE + pad 2: the transport runs; B (soloed) bright in its colour, A C D playing unheard: half",
+          st["run"] == "1" and lum(q[1]) > 3 * lum(p[1]) and not min(hue(q[1])) > 180
+          and all(lum(p[i]) < lum(q[i]) < lum(q[1]) * 0.7 for i in (0, 2, 3)), [f"{x:06X}" for x in q[:4]])
+    check("a solo holds the mutes: B's mute half red, the others dimmer than at rest",
+          red(q[9]) and 60 < hue(q[9])[0] < 200 and all(hue(q[i])[0] < hue(p[i])[0] for i in (8, 10, 11)), [f"{x:06X}" for x in q[8:12]])
+    q = pads(d, 4000)
+    check("solo B off: B muted again (start half, mute bright red), A C D heard (bright)",
+          hue(q[9])[0] > 200 and lum(q[1]) < 0.7 * lum(pads(d, 3900)[1]) and all(lum(q[i]) > 0.9 * lum(pads(d, 3900)[1]) * 0 + lum(q[1]) for i in (0, 2, 3)),
+          [f"{x:06X}" for x in q[:12]])
     q = pads(d, 4200)
     check("GLOBE let go: the pads are the steps again", q != pads(d, 3900), [f"{x:06X}" for x in q])
     q = pads(d, 4600)

@@ -111,7 +111,12 @@ Held, **GLOBE** turns the pads into channel strips, a column a track (the keys k
 | **bottom** | mute A | mute B | mute C | mute D | | | | tap tempo |
 
 Start and solo glow in the track's colour; start lights up in it while the track plays (blinking while it waits for the
-bar), solo turns white, mute is the red row and turns bright red; tap flashes on the beat. Held, **BT**: pads 1-8 are patterns 1-8, the one playing bright, the next one blinking,
+bar), solo turns white, mute is the red row and turns bright red; tap flashes on the beat.
+
+What you hear: a started track plays its steps; a solo, then a mute, decides whether it is heard. While any track is
+soloed only the soloed ones are heard and every mute is on hold (the mute row dims, a muted track's pad half red). A
+start pad at half brightness: the track plays, unheard (muted or soloed out); unmuted, it comes back at once and in
+time (start / stop waits for the bar and starts from step 1). Held, **BT**: pads 1-8 are patterns 1-8, the one playing bright, the next one blinking,
 saved ones dim. Let go and the pads are the steps again.
 
 ### The faders
