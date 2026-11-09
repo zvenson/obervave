@@ -74,6 +74,31 @@ int main(void)
         printf("master_gain: click energy (2nd difference, off the saw's corners): stepped %lld, glided %lld\n", es, eg);
         check(eg * 4 < es, "a knob turned during a note: the glide removes the clicks");
     }
+    {   /* the knob: the FM-1's pot smoothed exactly as before; the SMK-37's encoder followed at once, no drift */
+        int32_t s_old = 512 * 16, s_new = 512 * 16, s_enc = 512 * 16, raw = 724, last = -1, g = 0, drift = 0;
+        uint32_t pass, same = 1, after = 0;
+        for (pass = 0; pass < 400u; pass++) {    /* a pot wandering about: both smoothings the same, pass for pass */
+            uint32_t k10;
+            raw = (int32_t)((raw + (int32_t)(pass * 37u % 61u) - 30 + 1024) % 1024);
+            s_old += (raw * 16 - s_old) / 8; k10 = (uint32_t)(s_old / 16);
+            same &= master_knob_q12(&s_new, raw, 1) == (int32_t)((k10 * k10) >> 8);
+        }
+        check(same, "FM-1 (pot, smoothed): exactly the old 1/8-a-pass filter");
+        s_old = s_enc = 724 * 16; raw = 724;
+        for (pass = 0; pass < 20u; pass++) {     /* K1 spun up fast: 20 detents, one a pass, then let go */
+            raw += 24;
+            master_knob_q12(&s_old, raw, 1);
+            g = master_knob_q12(&s_enc, raw, 0);
+        }
+        for (pass = 0; pass < 200u; pass++) {    /* the passes after the knob stopped */
+            int32_t go = master_knob_q12(&s_old, raw, 1), ge = master_knob_q12(&s_enc, raw, 0);
+            if (go != last) { drift = (int32_t)pass + 1; last = go; }
+            if (ge != g) after++;
+        }
+        printf("master_gain: after K1 stops, the old filter still moved for %d main-loop passes\n", drift);
+        check(after == 0, "SMK-37 (encoder): the level stops when the knob stops (no drift)");
+        check(drift > 20, "... where the smoothing kept it drifting (the bug)");
+    }
     printf(fails ? "master_gain: FAILED\n" : "master_gain: all ok\n");
     return fails != 0;
 }

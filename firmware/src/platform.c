@@ -467,12 +467,8 @@ static void platform_poll(void)
     }
     if (fm1_ms >= 30000u && bootguard.pending)
         bootguard_clear(&bootguard);            /* 30 s up: this firmware boots */
-    if ((a = fm1_adc_read(FM1_ADC_MASTER)) >= 0) {
-        uint32_t k10;
-        knob_avg += (a * 16 - knob_avg) / 8;
-        k10 = (uint32_t)(knob_avg / 16);
-        master_q12 = (int32_t)((k10 * k10) >> 8);
-    }
+    if ((a = fm1_adc_read(FM1_ADC_MASTER)) >= 0)
+        master_q12 = master_knob_q12(&knob_avg, a, !BOARD_SMK37);   /* (the SMK-37's encoder: at once, no drift) */
 }
 
 static void fm1_fault(const fm1_crash_t *c)
