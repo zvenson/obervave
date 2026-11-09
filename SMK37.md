@@ -70,8 +70,8 @@ Everything from the FM-1 keeps its job, on the SMK button with the same meaning;
 | **CHORD** | ENV | the envelope pages |
 | **NOTE REPEAT** | LFO | the LFO pages |
 | **SCALE** | SEL | with BT held: a random sound |
-| **GLOBE** | GLO | GLOBAL / VOICE / OUTPUT; held: mute, solo, tap tempo |
-| **BT** | SAVE | twice: save the program; in the sequencer: save the pattern now; held: white keys go to pattern 1-8, black keys copy there |
+| **GLOBE** | GLO | GLOBAL / OUTPUT; held: start / stop, mute, solo, tap tempo, on the keys and on the pads (they show it) |
+| **BT** | SAVE | twice: save the program; in the sequencer: save the pattern now; held: white keys or pads 1-8 go to pattern 1-8 (the pads show them), black keys copy there |
 | **ARP**, **FX**, **SEQ** | ARP, FX, SEQ | as on the FM-1 (SEQ tapped: the full-screen sequencer, K5 the step cursor, see the [README](README.md#the-sequencer); held: the keys are steps) |
 | **SEQ PLAY**, **SEQ REC** | PLAY, REC | start / stop; record (held 2 s: clear the track) |
 | **OCTAVE- / OCTAVE+** | OCT- / OCT+ | the octave (both: 0); SEQ held: step page; PARA held: undo / redo |
@@ -101,6 +101,13 @@ The 16 pads are the 16 steps of the selected track's page, in reading order: the
 Lights: set steps in the track's colour (A blue, B orange, C green, D pink, as on the screen), dimmer when a step plays by chance; the playhead
 bright (red while recording); the held step red; beats 1, 5, 9, 13 glow faintly; past the track's length dark.
 
+### The pads in the GLOBE and BT layers
+
+Held, **GLOBE** turns the pads into its keys and shows them, as the FM-1's key LEDs do: pads 1-4 start / stop tracks
+A-D (lit in the track's colour while it plays, blinking while it waits for the bar), 5-8 mute (red), 9-12 solo, 16 tap
+tempo (it flashes on the beat). Held, **BT**: pads 1-8 are patterns 1-8, the one playing bright, the next one blinking,
+saved ones dim. Let go and the pads are the steps again.
+
 ### The faders
 
 | Bank | Fader 1 | Fader 2 | Fader 3 | Fader 4 |
@@ -108,7 +115,8 @@ bright (red while recording); the held step red; beats 1, 5, 9, 13 glow faintly;
 | **A** (PERFORM) | CUTOFF | RESO | ENV AMT | RELEASE |
 | **B** (effects) | CHORUS mix | DELAY mix | REVERB mix | MASTER (the level K1 turns) |
 
-A fader takes over only once you move it, also after a bank change, so nothing jumps. A short bar under the page
+A fader takes over only once you move it, also after a bank change, so nothing jumps. While REC records, bank A's moves
+are recorded onto the steps as a knob's are (four recorded controls a track). A short bar under the page
 shows the value.
 
 ### The panel check

@@ -2665,5 +2665,12 @@ static void host_steps(void)                    /* (tests/host.c "steps"): every
         }
         printf("\n");
     }
+    for (t = 0; t < NTRK; t++)                  /* the recorded knobs: each lane's parameter and how many steps it sets */
+        for (i = 0; i < NLANE; i++) {
+            uint32_t n = 0;
+            if (pat.lane[t][i].param == AUTO_NONE) continue;
+            for (q = 0; q < SEQ_STEPS; q++) n += pat.lane[t][i].v[q] != AUTO_NONE;
+            printf("%6u ms  LANE %c%u param=%s steps=%u\n", fm1_ms, "ABCD"[t], i, PDEF[pat.lane[t][i].param].name, n);
+        }
 }
 #endif

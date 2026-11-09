@@ -1,0 +1,12 @@
+# REC recording, fader A1 (CUTOFF) moved over the bar: its moves land in a lane of track A, as K5's do (smk_ui_test.py)
+3000 btn 16
+3200 btn 17
+3400 fader 0 20
+3600 fader 0 40
+3800 fader 0 60
+4000 fader 0 80
+4200 fader 0 100
+4400 fader 0 120
+4800 btn 16
+5000 steps
+5050 end

@@ -1,0 +1,18 @@
+# GLOBE / BT held: the pads show the layer and act as its white keys (smk_ui_test.py)
+3000 btndown 10
+3200 dump
+3300 pad 5 100
+3400 pad 5 0
+3500 dump
+3600 pad 1 100
+3700 pad 1 0
+3900 dump
+4000 btnup 10
+4200 dump
+4400 btndown 11
+4600 dump
+4700 pad 2 100
+4800 pad 2 0
+5000 dump
+5100 btnup 11
+5300 end

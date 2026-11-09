@@ -97,6 +97,30 @@ def main():
         check(f"track {name}: its set step lights in its colour", st["trk"] == str("ABCD".index(name[0])) and p[0] and
               ok(*grb(p[0])), (st["trk"], f"{p[0]:06X}", grb(p[0])))
 
+    print("== GLOBE / BT held: the pads show the layer and are its keys")
+    out, d = run("layers")
+    p = pads(d, 3200)
+    hue = lambda c: grb(c)
+    check("GLOBE held: pads 1-4 the tracks in their colours, 5-8 mute (red), 9-12 solo, 13-15 dark",
+          all(p[i] for i in range(12)) and not any(p[i] for i in (12, 13, 14)) and hue(p[4])[0] > hue(p[4])[1], [f"{x:06X}" for x in p])
+    q = pads(d, 3500)
+    check("GLOBE + pad 6: track B muted, its pad lit red", hue(q[5])[0] > 200 and hue(q[4])[0] < 40, [f"{x:06X}" for x in q])
+    q, st = pads(d, 3900), state(d, 3900)
+    check("GLOBE + pad 2: track B started (the transport with it), the playing tracks bright",
+          st["run"] == "1" and sum(hue(q[1])) > 3 * sum(hue(p[1])), (st["run"], f"{p[1]:06X}", f"{q[1]:06X}"))
+    q = pads(d, 4200)
+    check("GLOBE let go: the pads are the steps again", q != pads(d, 3900), [f"{x:06X}" for x in q])
+    q = pads(d, 4600)
+    check("BT held: pad 1 (the pattern now) bright, 2-8 dim, 9-16 dark",
+          sum(hue(q[0])) > 600 and all(0 < sum(hue(q[i])) < 100 for i in range(1, 8)) and not any(q[8:]), [f"{x:06X}" for x in q])
+    q = pads(d, 5000)
+    check("BT + pad 3 while playing: pattern 3 is next (its pad blinks bright)", sum(hue(q[2])) > 600, [f"{x:06X}" for x in q])
+
+    print("== faders record as the knobs do")
+    out, _ = run("fader_rec")
+    check("REC recording, fader A1 moved: a CUTOFF lane on track A", re.search(r"LANE A\d param=CUTOFF steps=[1-9]", out) is not None,
+          [l for l in out.splitlines() if "LANE" in l])
+
     print("== pads while REC is on: they play")
     out, d = run("rec")
     check("REC armed: a pad plays the pen (C4) at its velocity", "MIDI out 90 60 70" in out, out[-400:])
