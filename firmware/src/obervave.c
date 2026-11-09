@@ -1344,6 +1344,22 @@ static void seq_clear_cursor(void)              /* EDIT tapped: the cursor's ste
     say("STEP CLEARED");
 }
 
+/* a knob's speed: the detents that came, over the time since the ones before (at most ENC_WINDOW_MS: a burst after a
+ * pause is a spin), in detents a second. It was "more than one detent this main-loop pass": a pass takes from a few ms
+ * to tens (the screen), so a gentle turn in a long pass jumped x3 (LENGTH: a page of 16), and a real spin in short
+ * passes never sped up */
+#define ENC_FAST_PER_S 25u
+#define ENC_WINDOW_MS 150u
+static uint32_t enc_t[4], enc_fast;
+static int32_t enc_accel(uint32_t k, int32_t e)
+{
+    uint32_t a = (uint32_t)(e < 0 ? -e : e), dt = fm1_ms - enc_t[k % 4u];
+    if (dt > ENC_WINDOW_MS) dt = ENC_WINDOW_MS;
+    enc_t[k % 4u] = fm1_ms;
+    enc_fast = a * 1000u >= ENC_FAST_PER_S * (dt ? dt : 1u);
+    return enc_fast ? e * 3 : e;
+}
+
 static void seq_view_turn(uint32_t knob, int32_t e)
 {
     uint32_t t = seq_trk, len = pat.trk[t].len, k;
@@ -1369,7 +1385,7 @@ static void seq_view_turn(uint32_t knob, int32_t e)
         if (knob == 0) {
             int32_t l = (int32_t)tk->len;
             if (!l && e > 0) l = 16;            /* (switched on: a bar) */
-            else if (e > 1 || e < -1) l = e > 0 ? (l / 16 + 1) * 16 : (l - 1) / 16 * 16;   /* fast: a page of 16 */
+            else if (enc_fast) l = e > 0 ? (l / 16 + 1) * 16 : (l - 1) / 16 * 16;   /* fast: a page of 16 */
             else l += e;
             tk->len = (uint16_t)clampi(l, 0, (int32_t)SEQ_STEPS);
             if (tk->len && seq_cur[t] >= tk->len) seq_cursor_set(t, tk->len - 1u);
@@ -2284,7 +2300,7 @@ static void app_main(void)
         for (k = 0; k < 4u; k++) {
             int32_t p = PAGE[page].p[k];
             if ((e = fm1_enc_take(ENC_KNOB1 + k)) == 0) continue;
-            if (e > 1 || e < -1) e *= 3;        /* a fast turn goes further */
+            e = enc_accel(k, e);                /* a fast turn goes further */
             if (page == PG_MIXER && !layer) {  /* the mixer: track k's LEVEL / PAN / SEND */
                 if (mix_row == 6u) {            /* (VIBE) MASTER */
                     if (k == 0) set.m_vol = (uint8_t)clampi((int32_t)set.m_vol + e, 0, 127);
