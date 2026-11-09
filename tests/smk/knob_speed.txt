@@ -1,0 +1,17 @@
+# K5 on PERFORM (CUTOFF): the speed of a turn is detents per second, not detents per main-loop pass (tests/knob_speed_test.py)
+# slow: one detent every 300 ms
+3000 enc 4 1
+3300 enc 4 1
+3600 enc 4 1
+3700 dump
+# slow, but two detents in one pass (a pass that took long: the screen drawing)
+4700 enc 4 2
+4800 dump
+# fast: a detent every 20 ms (50 a second), one a pass
+5000 enc 4 1
+5020 enc 4 1
+5040 enc 4 1
+5060 enc 4 1
+5080 enc 4 1
+5100 dump
+5200 end

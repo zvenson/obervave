@@ -25,13 +25,21 @@
 #include "smk_wheel.h"
 
 static const uint8_t SMK_WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};   /* step -> its white key */
-#define SMK_TRK_A RGB(96, 176, 255)             /* track A: the screen's light blue accent (C_AMBER) */
-#define SMK_TRK_B RGB(226, 232, 240)            /* track B: the screen's legends (C_CREAM) */
+/* GLOBE held, the pads as a mixer's channel strips (top row 1-8, bottom 9-16):
+ *     1-4  start / stop A-D      5-8   solo A-D
+ *     9-12 mute A-D              13-15 -      16 tap tempo
+ * Start and solo glow in the track's colour (a column is a track), mute is the red row; lit: playing in its colour
+ * (blinking while it waits for the bar; half when it plays unheard: muted or soloed out), soloed white, muted bright
+ * red (half while a solo puts the mutes on hold). SMK_GLO_PAD: the pad's GLOBE key (glo_key: white key 1-4 start, 5-8 mute,
+ * 9-12 solo, 16 tap), -1 none */
+static const int8_t SMK_GLO_PAD[16] = {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, -1, -1, -1, 15};
 
 static uint32_t smk_bank;                       /* FADER BANK: 0 = A (PERFORM), 1 = B (effects, MASTER) */
 static uint8_t smk_fad_last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 static uint8_t smk_live[16][SEQ_CHORD];         /* the notes a pad plays live (REC on): its release ends them */
+static uint8_t smk_live_part[16];               /* ... on the track they began on */
 static uint8_t smk_ext_note[FM1_NKEY], smk_ext_erase[FM1_NKEY];   /* an outer key's note; 1: it erases (EDIT held) */
+static uint8_t smk_ext_part[FM1_NKEY];          /* an outer key's track, from its note on */
 static uint32_t smk_view_prev;
 static const char *smk_ov1;                     /* the overlay under the page (faders, banks, step pages), 1.5 s */
 static char smk_ov2[40];
@@ -78,13 +86,30 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
     (void)base;
     while ((e = smk_pad_take()) >= 0) {
         uint32_t p = ((uint32_t)e >> 8) & 15u, vel = (uint32_t)e & 0xFFu, k = SMK_WK[p], q;
+        if (vel && layer == L_GLO) {            /* GLOBE held: the pads are its keys, laid out as channel strips (SMK_GLO_PAD) */
+            if (SMK_GLO_PAD[p] >= 0) glo_key(SMK_WK[SMK_GLO_PAD[p]]);
+            layer_used = 1;
+            *dirty = 1;
+            continue;
+        }
+        if (vel && layer == L_SAVE) {           /* BT held: pads 1-8 go to pattern 1-8 */
+            static char msg[16];
+            layer_used = 1;
+            if (p < NPAT) {
+                if (p != set.pat || pat_queue) pat_go(p);
+                else { msg[0] = 0; scat(msg, "PATTERN "); fmt_u(msg + slen(msg), set.pat + 1u); say(msg); }
+            }
+            *dirty = 1;
+            continue;
+        }
         if (vel) {
             if (rec) {                              /* REC on: the pad plays the pen chord, recorded as the keys are */
+                smk_live_part[p] = (uint8_t)(seq_trk % NTRK);
                 for (q = 0; q < SEQ_CHORD; q++) {
                     uint32_t n = q < (pen_n ? pen_n : 1u) ? (pen_n ? pen_chord[q] : pen) : 0u;
                     smk_live[p][q] = (uint8_t)n;
                     if (!n) continue;
-                    play_note(1, n, vel); midi_send(0x90u | MIDI_OUT_CH, n, vel);
+                    play_note(1, n, vel, smk_live_part[p]); midi_send(0x90u | MIDI_OUT_CH, n, vel);
                     if (rec_keys()) rec_note(1, n, vel);
                 }
             } else {                                /* a step: as its white key in the SEQ layer */
@@ -103,12 +128,13 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
             }
         } else {
             for (q = 0; q < SEQ_CHORD; q++) {
-                uint32_t n = smk_live[p][q];
+                uint32_t n = smk_live[p][q], t;
                 smk_live[p][q] = 0;
                 if (!n) continue;
-                play_note(0, n, 0); midi_send(0x80u | MIDI_OUT_CH, n, 0);
+                play_note(0, n, 0, smk_live_part[p]); midi_send(0x80u | MIDI_OUT_CH, n, 0);
                 if (rec_keys()) rec_note(0, n, 0);
-                for (q = 0; q < NTRK; q++) ctl_live_hold[q][n >> 5 & 3u] &= ~(1u << (n & 31u));   /* (let go: the sequencer's) */
+                for (t = 0; t < NTRK; t++) ctl_live_hold[t][n >> 5 & 3u] &= ~(1u << (n & 31u));   /* (let go: the sequencer's; its own
+                                                                                                      * counter: q went on to the chord's end) */
             }
         }
         *dirty = 1;
@@ -126,7 +152,8 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
                 say("ERASED");
             } else {
                 midi_send(0x90u | MIDI_OUT_CH, n, vel);
-                note_in(1, n, vel);
+                smk_ext_part[kk] = (uint8_t)(seq_trk % NTRK);
+                note_in(1, n, vel, smk_ext_part[kk]);
             }
         } else if (smk_ext_note[kk]) {
             uint32_t n = smk_ext_note[kk];
@@ -134,7 +161,7 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
             if (smk_ext_erase[kk]) erase_on[(uint32_t)clampi((int32_t)n - pat.trk[seq_trk].transp, 1, 127)] = 0;
             else {
                 midi_send(0x80u | MIDI_OUT_CH, n, 0);
-                note_in(0, n, 0);
+                note_in(0, n, 0, smk_ext_part[kk]);
             }
         }
         if (notes_shown()) *dirty = 1;          /* (a note alone changes no knob page) */
@@ -184,6 +211,7 @@ static void smk_faders(uint32_t *dirty_page, uint32_t *dirty_hdr, uint32_t *dirt
         smk_fad_last[i] = (uint8_t)v;
         if (p >= 0) {
             set_param((uint32_t)p, (int32_t)(v * PDEF[p].max + 63u) / 127);
+            auto_rec((uint32_t)p);              /* REC running: a fader's moves are recorded, as a knob's (one of the four lanes) */
             param_value(val, (uint32_t)p, ed_patch((uint32_t)p)->v[p]);
             if (p == P_CUTOFF) cut_shown_t = fm1_ms + 1u;
             *dirty_page = *dirty_hdr = 1;
@@ -227,15 +255,49 @@ static uint16_t smk_dim(uint16_t c, uint32_t k)   /* c * k / 256 */
 {
     return blend565(0, c, k);
 }
+/* GLOBE or BT held: the pads show that layer, as the FM-1's key LEDs do (the SMK-37 has none). -1: not a layer pad */
+static int32_t smk_layer_led(uint32_t p)
+{
+    uint32_t blink = (fm1_ms / 150u) & 1u;
+    if (layer == L_GLO) {
+        int32_t w = SMK_GLO_PAD[p & 15u];
+        uint32_t t = (uint32_t)w & 3u, solo = set.mix_solo & 15u, muted = set.mix_mute >> t & 1u;
+        uint32_t heard = solo ? solo >> t & 1u : !muted;   /* (mix_apply: a solo outranks every mute) */
+        uint16_t tc = C_TRKC[t];
+        if (w < 0) return 0;
+        if (w < 4) {                            /* start / stop: playing in its colour (half when muted or soloed out),
+                                                 * blinking while it waits */
+            uint32_t on = ctl_seq_run && (ctl_trk_on >> t & 1u) && pat.trk[t].len, pend = trk_pending() >> t & 1u;
+            return pend ? (blink ? tc : smk_dim(tc, 24)) : on ? (heard ? tc : smk_dim(tc, 96)) : smk_dim(tc, 24);
+        }
+        if (w < 8) {                            /* mute: the red row, bright when muted; a solo puts the mutes on hold:
+                                                 * the row dimmer, a mute half */
+            if (solo) return muted ? smk_dim(C_RED, 96) : smk_dim(C_RED, 6);
+            return muted ? C_RED : smk_dim(C_RED, 18);
+        }
+        if (w < 12) return set.mix_solo >> t & 1u ? C_CREAM : smk_dim(tc, 24);   /* solo: white */
+        return fm1_ms - beat_t < 90u && ctl_seq_run ? C_CREAM : smk_dim(C_CREAM, 10);   /* tap: the beat */
+    }
+    if (layer == L_SAVE) {                      /* 1-8: the pattern now bright, the next one blinking, saved ones dim */
+        if (p >= NPAT) return 0;
+        if (pat_queue && p == pat_queue - 1u) return blink ? C_CREAM : smk_dim(C_CREAM, 24);
+        if (p == set.pat) return C_CREAM;
+        return smk_dim(C_CREAM, pat_used >> p & 1u ? 40 : 8);
+    }
+    return -1;
+}
+
 static void smk_leds(void)
 {
     uint32_t t = seq_trk, len = pat.trk[t].len, w0 = seq_pg[t] * 16u, ph = len ? ui_seq_pos[t] % len : 0u, p;
-    uint16_t tc = t ? SMK_TRK_B : SMK_TRK_A;
+    uint16_t tc = C_TRKC[t % 4u];                /* the track's colour, as on the screen (A blue, B orange, C green, D pink) */
     for (p = 0; p < 16u; p++) {
         uint32_t n = w0 + p, q, live_on = 0;
         uint16_t c = 0;
+        int32_t lc = smk_layer_led(p);
         for (q = 0; q < SEQ_CHORD; q++) live_on |= smk_live[p][q];
-        if (live_on) c = C_CREAM;               /* playing live (REC) */
+        if (lc >= 0) c = (uint16_t)lc;          /* GLOBE / BT held: that layer */
+        else if (live_on) c = C_CREAM;          /* playing live (REC) */
         else if (n < len) {
             const step_t *st = seq_step(t, n);
             uint32_t set = st->note[0] && !(st->ratch & STEP_OFF);

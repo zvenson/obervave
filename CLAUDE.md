@@ -27,12 +27,13 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
   delay, plate reverb: after the voices in the ISR), `obv_engine.h` (voices, envelopes, LFO, arp: the ISR),
   `obv_patches.h` (32 factory programs), `obv_seq.h` (the sequencer: pattern, factory patterns, the ISR player),
   `obv_ui.h` (the drawing).
-- Sequencer (`obv_seq.h`): `pattern_t` = magic, 2 tracks {len, div, swing 50-75, transp, mute}, 256 steps {4 notes,
+- Sequencer (`obv_seq.h`) (since 3.0: four tracks A-D, each its own 256 steps, `st[NTRK][SEQ_STEPS]`; what follows is
+  1.x's two-track layout, kept for its history): `pattern_t` = magic, 2 tracks {len, div, swing 50-75, transp, mute}, 256 steps {4 notes,
   vel, gate (127 = TIE), ratch 0-3, chance 0-100}. Track A's step i is `st[i]`, B's is `st[255 - i]` (a length change
   never moves the other's steps), lenA + lenB <= 256, A >= 1, B 0 = off. `seq_tick` per CTL block after `arp_tick`,
   straight into `voice_trigger` / `voice_release(n, 1)` (not through the arp). 8 patterns, one flash sector each
   at 0xF4000.. (`blob_load/save` in platform.c, `FL_RANGE_OK` widened; the host keeps them in RAM); `set.pat` is
-  the current one. Saves wait for the sequencer to stop and the voices to be quiet (the erase stalls the audio).
+  the current one. Saves wait for the sequencer to stop and the output to be silent, effect tails too (the erase stalls the audio; engine_quiet).
   Panel = sloopDX's (the user: "die Tastaturbefehle wie bei sloopDX, sonst nützt das keiner"; repair, not a port):
   a function button tapped (let go untouched, < 600 ms) opens its pages, held it is a layer (`layer`: L_SEQ steps,
   L_EDIT erase + SHIFT / LENGTH x2,1/2 / TRANSPOSE knobs + OCT undo/redo, L_GLO keys 1/2 mute, 5/6 solo, G5 tap
@@ -126,6 +127,57 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 - Workspace file: `../obervave.code-workspace` (opened in VSCodium Insiders, flatpak).
 
 ## Status (2026-10-13, third session)
+
+**SMK-37 performance (2026-11-09, branch `smk-features`, after `notes-fixes`; played on the SMK-37 Elite):**
+- **Knob speed** in detents a second (`enc_accel`: >= 25 over at most 150 ms), not "more than one detent this
+  main-loop pass": a pass is a few ms to tens (the screen), so a gentle turn in a long pass jumped x3 (LENGTH a page
+  of 16) and a real spin in short passes never sped up. tests/knob_speed_test.py.
+- **The pads show and play the GLOBE and BT layers** (the FM-1 shows them on its key LEDs; the SMK-37 has none).
+  GLOBE as channel strips (`SMK_GLO_PAD`): top 1-4 start / stop A-D, 5-8 solo; bottom 9-12 mute, 16 tap. Start and
+  solo in the track's colour, mute the red row; lit: playing in its colour (half when unheard: muted or soloed out),
+  soloed white, muted bright red (half while a solo holds the mutes, as `mix_apply`: a solo outranks every mute).
+  BT: pads 1-8 the patterns (now bright, next blinking, saved dim). The keys keep the FM-1's layout.
+- **The faders record** while REC records, as the knobs (`auto_rec` from `smk_faders`).
+- Tests: tests/smk/layers.txt, fader_rec.txt (smk_ui_test.py); the host `steps` dump lists the knob lanes.
+- Tried and left: "tap = toggle, hold = inspect" for the step pads (a drag over the pads ties every other step via
+  hold + later step; holding a set pad to look at it clears it). The user prefers to tap one pad at a time.
+
+**Fixes, part 2 (2026-11-08, branch `notes-fixes`, after `fixes`; installed and played on the SMK-37 Elite):** state
+changing under held notes. Found by ear (a chord held from 02 to 03 hung) and then by two fuzzers.
+- **Hanging notes.** `voice_release` took the *current* program's mode: a POLY chord held into a MONO / UNISON program
+  took the legato path and returned without a release; now it falls through when there is no hand-over, and a hand-over
+  ends the POLY voice of that note left from before. The track of a note was one per note number (`note_part[128]`)
+  for the keys, the outer keys, the pads and MIDI together: the same note on two tracks (K3 turned while held, MIDI)
+  sent one release to the other track. Each source now keeps its own (`held_part`, `smk_ext_part`, `smk_live_part`,
+  `midi_part[16][128]`). The REC pads let go of every note of the pen chord (the inner loop reused the chord's `q`).
+- **Recording across a K3 change:** `rec_open` is by the note heard and keeps its track and stored note; the end and the
+  ties went to the track picked at the let go (and a transpose change left the note open).
+- **The panel under ASan + UBSan:** `trk_select` wrote one byte past `msg[20]` on every pick of an empty track; the SVF's
+  and the plate's products passed 2^31 driven hard (64-bit now, bit-identical below); a negative shift in the mixer.
+- Tests: `tests/hang_test.py` (tests/hang/*), `tests/held_switch_test.py`, `tests/mono_legato.txt` (legato bit-identical),
+  `tests/rec_track_test.py`, `tests/fuzz_notes.py` (random bursts of keys, MIDI, programs, modes, tracks, layers,
+  PLAY / REC; rule: all let go = nothing gated; 1600 clean), `tests/fuzz_ui.py` (the whole panel under the sanitizers,
+  320 x 600 events clean). Host scripts can print `voices` and `steps`.
+- Open, a design question: README says a set MIDI channel plays track A; its notes play K3's track (its program
+  changes go to A).
+
+**Fixes (2026-11-08, branch `fixes`, a PR by a user of an SMK-37 Elite; installed and heard on that unit):**
+- **Flash saves wait for real silence.** `engine_quiet()` looked at the voices only: settings / program / pattern saves
+  came in delay and reverb tails and between staccato notes (a short release goes idle in a 50 ms gap), and an erase
+  is ~50 ms a sector with interrupts off: random crackles, the button LEDs' multiplex and the voice dots stall with it.
+  Now the output (`eng_loud_ms`, obv_fx.h) must be under ~-60 dBFS for 300 ms; a tail that never dies (FEEDBK 127)
+  is taken under ~-36 dBFS after 20 s idle, so a save is put off, never lost. tests/quiet_save_test.py.
+- **MASTER glides** across each audio half (`master_gain.h`, the one change in Dinghy's platform.c): turning the
+  SMK-37's K1 (~0.6 dB a detent) during a note clicked every 5.8 ms. tests/master_gain_test.c.
+- **GLOBAL's CPU time** is the slowest half of the last 2 s, `!N` the halves rendered too late (`cpu_meter.h`).
+  Measured on the Elite: ~3500 us playing hard, 20 DRONE UNI + chorus, delay, reverb ~4500 us of 5805, no `!`; a
+  pattern change while playing made no difference. First lever if `!` shows: `REV_DIV 2`.
+- **SMK-37 pads** light each track in its screen colour (`C_TRKC`; B-D were all white).
+- No shifts of negative values (UBSan); the host build compiles again (the mirror is device-only); the SMK package
+  test knows the 95XY identity; **CI blocks on the host tests again** and runs `tests/sanitize.sh` (ASan + UBSan,
+  every script, both boards). The host WAVs and screens stay bit-identical except where a fix means them to change.
+- Left on purpose (one unit, no risk to the update path): the UC25HQ80 in the SMK's `FL_JEDEC_OK`, the `-O2` USB
+  question, a faster key scan for velocity.
 
 **3.3.2 (2026-11-02, FM-1_9533, tag v3.3.2, released by the user without a hardware test ("baller hoch")):** FM-1 Mirror (Patrick F.
 Kellogg's app; his screen_mirror module, MIT, in firmware/src/screen_mirror/): lcd.c's LCD_MIRROR hooks hand every RAMWR's

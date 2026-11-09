@@ -1,0 +1,27 @@
+# GLOBE / BT held: the pads show the layer and are its keys (smk_ui_test.py). GLOBE as channel strips:
+# 1-4 start / stop A-D, 5-8 solo A-D, 9-12 mute A-D, 16 tap (script pads count from 0: "pad 5" is pad 6, solo B)
+3000 btndown 10
+3200 dump
+# mute B, then solo B (a solo outranks the mutes: B heard, A C D not)
+3300 pad 9 100
+3400 pad 9 0
+3450 pad 5 100
+3460 pad 5 0
+3500 dump
+# start (the transport with it): B playing and heard, A C D playing unheard
+3600 pad 1 100
+3700 pad 1 0
+3900 dump
+# solo B off: B's mute counts again, A C D heard
+3950 pad 5 100
+3960 pad 5 0
+4000 dump
+4100 btnup 10
+4200 dump
+4400 btndown 11
+4600 dump
+4700 pad 2 100
+4800 pad 2 0
+5000 dump
+5100 btnup 11
+5300 end

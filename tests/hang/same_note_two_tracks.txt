@@ -1,0 +1,9 @@
+# G5 held on track A, K3 to B, the same note (79) from MIDI on B, both let go: nothing may hang (tests/hang_test.py)
+3000 midi 0xC0 1 0
+3300 keys 0x4000000
+3500 enc 2 1
+4200 midi 0x90 79 61
+4600 keys 0
+4600 midi 0x80 79 0
+6600 voices
+6650 end
