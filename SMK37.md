@@ -103,9 +103,15 @@ bright (red while recording); the held step red; beats 1, 5, 9, 13 glow faintly;
 
 ### The pads in the GLOBE and BT layers
 
-Held, **GLOBE** turns the pads into its keys and shows them, as the FM-1's key LEDs do: pads 1-4 start / stop tracks
-A-D (lit in the track's colour while it plays, blinking while it waits for the bar), 5-8 mute (red), 9-12 solo, 16 tap
-tempo (it flashes on the beat). Held, **BT**: pads 1-8 are patterns 1-8, the one playing bright, the next one blinking,
+Held, **GLOBE** turns the pads into channel strips, a column a track (the keys keep the FM-1's layout):
+
+| | A | B | C | D | | | | |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **top** | start / stop | start / stop | start / stop | start / stop | solo A | solo B | solo C | solo D |
+| **bottom** | mute A | mute B | mute C | mute D | | | | tap tempo |
+
+Start and solo glow in the track's colour; start lights up in it while the track plays (blinking while it waits for the
+bar), solo turns white, mute is the red row and turns bright red; tap flashes on the beat. Held, **BT**: pads 1-8 are patterns 1-8, the one playing bright, the next one blinking,
 saved ones dim. Let go and the pads are the steps again.
 
 ### The faders

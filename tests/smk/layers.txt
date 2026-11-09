@@ -1,8 +1,11 @@
-# GLOBE / BT held: the pads show the layer and act as its white keys (smk_ui_test.py)
+# GLOBE / BT held: the pads show the layer and are its keys (smk_ui_test.py). GLOBE as channel strips:
+# 1-4 start / stop A-D, 5-8 solo A-D, 9-12 mute A-D, 16 tap (script pads count from 0: "pad 5" is pad 6, solo B)
 3000 btndown 10
 3200 dump
-3300 pad 5 100
-3400 pad 5 0
+3300 pad 9 100
+3400 pad 9 0
+3450 pad 5 100
+3460 pad 5 0
 3500 dump
 3600 pad 1 100
 3700 pad 1 0

@@ -101,13 +101,18 @@ def main():
     out, d = run("layers")
     p = pads(d, 3200)
     hue = lambda c: grb(c)
-    check("GLOBE held: pads 1-4 the tracks in their colours, 5-8 mute (red), 9-12 solo, 13-15 dark",
-          all(p[i] for i in range(12)) and not any(p[i] for i in (12, 13, 14)) and hue(p[4])[0] > hue(p[4])[1], [f"{x:06X}" for x in p])
+    red = lambda c: hue(c)[0] > 2 * max(hue(c)[1], hue(c)[2], 1)
+    check("GLOBE held: pads 1-4 start and 5-8 solo in the track colours, 9-12 mute dim red, 13-15 dark, 16 tap",
+          all(p[i] for i in list(range(12)) + [15]) and not any(p[i] for i in (12, 13, 14)) and all(red(p[i]) for i in range(8, 12))
+          and p[0] == p[4] and p[1] == p[5], [f"{x:06X}" for x in p])
     q = pads(d, 3500)
-    check("GLOBE + pad 6: track B muted, its pad lit red", hue(q[5])[0] > 200 and hue(q[4])[0] < 40, [f"{x:06X}" for x in q])
+    check("GLOBE + pad 10: track B muted, its mute pad bright red", red(q[9]) and hue(q[9])[0] > 200 and hue(q[8])[0] < 60,
+          [f"{x:06X}" for x in q])
+    check("GLOBE + pad 6: track B soloed, its solo pad white (not its colour, not the start pad's look)",
+          min(hue(q[5])) > 180 and q[5] != q[1], [f"{x:06X}" for x in q])
     q, st = pads(d, 3900), state(d, 3900)
-    check("GLOBE + pad 2: track B started (the transport with it), the playing tracks bright",
-          st["run"] == "1" and sum(hue(q[1])) > 3 * sum(hue(p[1])), (st["run"], f"{p[1]:06X}", f"{q[1]:06X}"))
+    check("GLOBE + pad 2: track B started (the transport with it), its start pad bright in its colour",
+          st["run"] == "1" and sum(hue(q[1])) > 3 * sum(hue(p[1])) and not min(hue(q[1])) > 180, (st["run"], f"{p[1]:06X}", f"{q[1]:06X}"))
     q = pads(d, 4200)
     check("GLOBE let go: the pads are the steps again", q != pads(d, 3900), [f"{x:06X}" for x in q])
     q = pads(d, 4600)

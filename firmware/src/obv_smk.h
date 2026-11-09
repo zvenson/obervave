@@ -25,6 +25,13 @@
 #include "smk_wheel.h"
 
 static const uint8_t SMK_WK[16] = {0, 2, 4, 6, 7, 9, 11, 12, 14, 16, 18, 19, 21, 23, 24, 26};   /* step -> its white key */
+/* GLOBE held, the pads as a mixer's channel strips (top row 1-8, bottom 9-16):
+ *     1-4  start / stop A-D      5-8   solo A-D
+ *     9-12 mute A-D              13-15 -      16 tap tempo
+ * Start and solo glow in the track's colour (a column is a track), mute is the red row; lit: playing in its colour
+ * (blinking while it waits for the bar), soloed white, muted bright red. SMK_GLO_PAD: the pad's GLOBE key (glo_key: white key 1-4 start, 5-8 mute,
+ * 9-12 solo, 16 tap), -1 none */
+static const int8_t SMK_GLO_PAD[16] = {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, -1, -1, -1, 15};
 
 static uint32_t smk_bank;                       /* FADER BANK: 0 = A (PERFORM), 1 = B (effects, MASTER) */
 static uint8_t smk_fad_last[4] = {0xFF, 0xFF, 0xFF, 0xFF};
@@ -78,9 +85,8 @@ static void smk_pads(uint32_t base, uint32_t *dirty)
     (void)base;
     while ((e = smk_pad_take()) >= 0) {
         uint32_t p = ((uint32_t)e >> 8) & 15u, vel = (uint32_t)e & 0xFFu, k = SMK_WK[p], q;
-        if (vel && layer == L_GLO) {            /* GLOBE held: the pads are its white keys (1-4 start / stop, 5-8 mute,
-                                                 * 9-12 solo, 16 tap tempo), as they show (smk_leds) */
-            glo_key(k);
+        if (vel && layer == L_GLO) {            /* GLOBE held: the pads are its keys, laid out as channel strips (SMK_GLO_PAD) */
+            if (SMK_GLO_PAD[p] >= 0) glo_key(SMK_WK[SMK_GLO_PAD[p]]);
             layer_used = 1;
             *dirty = 1;
             continue;
@@ -253,15 +259,17 @@ static int32_t smk_layer_led(uint32_t p)
 {
     uint32_t blink = (fm1_ms / 150u) & 1u;
     if (layer == L_GLO) {
-        if (p < NTRK) {                         /* 1-4: track A-D playing; blinking while it waits for the bar */
-            uint16_t tc = C_TRKC[p];
-            uint32_t on = ctl_seq_run && (ctl_trk_on >> p & 1u) && pat.trk[p].len, pend = trk_pending() >> p & 1u;
+        int32_t w = SMK_GLO_PAD[p & 15u];
+        uint32_t t = (uint32_t)w & 3u;
+        uint16_t tc = C_TRKC[t];
+        if (w < 0) return 0;
+        if (w < 4) {                            /* start / stop: playing in its colour, blinking while it waits */
+            uint32_t on = ctl_seq_run && (ctl_trk_on >> t & 1u) && pat.trk[t].len, pend = trk_pending() >> t & 1u;
             return pend ? (blink ? tc : smk_dim(tc, 24)) : on ? tc : smk_dim(tc, 24);
         }
-        if (p < 8u) return set.mix_mute >> (p - 4u) & 1u ? C_RED : smk_dim(C_RED, 14);       /* 5-8: muted */
-        if (p < 12u) return set.mix_solo >> (p - 8u) & 1u ? C_CREAM : smk_dim(C_CREAM, 10);  /* 9-12: solo */
-        if (p == 15u) return fm1_ms - beat_t < 90u && ctl_seq_run ? C_CREAM : smk_dim(C_CREAM, 10);   /* 16: tap, the beat */
-        return 0;
+        if (w < 8) return set.mix_mute >> t & 1u ? C_RED : smk_dim(C_RED, 18);   /* mute: the red row, bright when muted */
+        if (w < 12) return set.mix_solo >> t & 1u ? C_CREAM : smk_dim(tc, 24);   /* solo: white */
+        return fm1_ms - beat_t < 90u && ctl_seq_run ? C_CREAM : smk_dim(C_CREAM, 10);   /* tap: the beat */
     }
     if (layer == L_SAVE) {                      /* 1-8: the pattern now bright, the next one blinking, saved ones dim */
         if (p >= NPAT) return 0;
