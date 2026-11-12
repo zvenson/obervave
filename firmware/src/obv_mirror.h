@@ -13,6 +13,7 @@ static uint32_t mr_x0, mr_x1, mr_x, mr_y;        /* the window lcd.c writes into
 static uint16_t mr_row[240];
 static uint8_t mr_lost;                          /* rows did not fit: the next pass draws everything again */
 
+#ifndef OBV_HOST
 static int mr_send_wait(const uint8_t *m, unsigned n)   /* (blocking: the buffer is full in the middle of a picture) */
 {
     return usb.config && !ota_wire_send(m, n) ? 0 : -1;
@@ -25,6 +26,12 @@ static int mr_send(const uint8_t *m, unsigned n)        /* (main loop: only what
         return -2;
     return ota_wire_send(m, n) ? -1 : 0;
 }
+#else                                            /* the host has no USB: nothing is ever asked for or sent */
+static int mr_send_wait(const uint8_t *m, unsigned n) { (void)m; (void)n; return -1; }
+static int mr_send(const uint8_t *m, unsigned n) { (void)m; (void)n; return -1; }
+static int ota_frame_get(const uint8_t **p, uint32_t *n) { (void)p; (void)n; return 0; }
+static void ota_frame_done(void) {}
+#endif
 
 static void lcd_mirror_window(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1)
 {
