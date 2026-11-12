@@ -1,0 +1,19 @@
+# (3.5.1) MEMORY while playing: SAVE waits for the stop (written then), LOAD of another slot comes on the bar
+3000 btn 12
+3500 btn 8
+3700 enc 2 -20
+3900 btn 9
+4100 btn 9
+4300 shot
+4600 enc 2 1
+4800 btn 9
+5000 shot
+# LOAD 1 (2 is clean): on the next bar
+5200 enc 3 1
+5300 enc 2 -1
+5400 btn 9
+5600 shot
+7500 shot
+8000 btn 12
+8600 shot
+9000 end

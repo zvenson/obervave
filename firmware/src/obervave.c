@@ -92,13 +92,13 @@ _Static_assert(NPSECT * PS_N >= NPROG, "too few program sectors");
 static psect_t psect[NPSECT];
 static uint32_t ps_dirty;                       /* bit i: program sector i to save */
 
-static uint32_t page = PG_PERFORM, hold, save_armed, save_t, save_to;   /* save_to: SAVE's slot (PRESETS); hold: bit t = track t's HOLD */
+static uint32_t page = PG_PERFORM, hold;       /* hold: bit t = track t's HOLD */
 static uint32_t trk_prog[NTRK], trk_edited[NTRK];   /* each track's program, and whether its sound was changed since */
 static uint32_t mix_row;                        /* the mixer page's knobs: 0 LEVEL, 1 PAN, 2 CHORUS, 3 DELAY, 4 REVERB, 5 DRIVE, 6 MASTER */
 
 /* the sequencer, as the panel sees it */
 enum { REC_OFF, REC_READY, REC_ON };            /* REC: off, armed (the first note starts the loop), recording */
-static uint32_t seq_trk, seq_cur[NTRK], seq_pg[NTRK], rec, pat_edited, pat_dirty, seq_back = PG_PERFORM;
+static uint32_t seq_trk, seq_cur[NTRK], seq_pg[NTRK], rec, pat_edited, seq_back = PG_PERFORM;
 static uint32_t rec_down, rec_down_t, beat_seen, beat_t;   /* rec_down: REC held since rec_down_t */
 static uint32_t rec_wait;                       /* a track + 1 that REC waits for: it records from its start on the bar */
 static struct { uint16_t step; uint32_t t; } rec_open[128];   /* a recorded note still held: where and when it began */
@@ -112,18 +112,27 @@ static uint32_t step_held_t, step_turned, step_midi, toast_t;
 static uint8_t audition[SEQ_CHORD], audition_part;   /* the held step's notes sounding (stopped: you hear what you hold) */
 static const char *toast;
 static int is_seq_page(uint32_t pg) { return pg == PG_SEQ; }
-/* the full-screen sequencer's views (SEQ tapped steps through the first three; SAVE tapped there: PATTERNS) */
+/* the full-screen sequencer's views (SEQ tapped steps through them; SAVE tapped anywhere: MEMORY) */
 enum { SV_TRACKS, SV_STEPS, SV_MORE, SV_TRACK, SV_SLOTS, NSV };   /* TRACKS first: A-D one under the other (SLOOP) */
-static const char *const SV_NAME[NSV] = {"TRACKS", "STEPS", "STEP+", "TRACK", "PATTERNS"};
+static const char *const SV_NAME[NSV] = {"TRACKS", "STEPS", "STEP+", "TRACK", "MEMORY"};
 #define SV_ENTRY(v) ((v) == SV_STEPS || (v) == SV_MORE)   /* the views where the keys write into the cursor's step */
 /* STEP+ is no view of its own: SELECT held down in STEPS shows its knobs (RATCHET, CHANCE, ON/OFF), as VIBE's SHIFT */
 static uint32_t more_held;
 #define SV_EFF (seq_view == SV_STEPS && more_held ? (uint32_t)SV_MORE : seq_view)
-static uint32_t seq_view, slot_sel, pat_used, pat_next, arm_k, arm_t, entry_n, pat_edit_t, pend_slot, pat_save_say;
+static uint32_t seq_view, slot_sel, pat_used, arm_k, arm_t, entry_n, pend_slot;   /* pend_slot: a slot + 1 whose save waits
+                                                 * (in pat_old) for the stop and the quiet: an erase stalls the sound */
 static uint8_t entry_on_note[128];              /* the keys writing into the cursor step now */
 static uint16_t slot_len[NBLOB][NTRK];          /* the saved patterns' track lengths (the PATTERNS view) */
-static uint32_t pat_save_armed, pat_save_t, q_edited;   /* q_edited: the next pattern brings unsaved edits */    /* SAVE tapped in the sequencer: SAVE PATTERN? (again: saved) */
-static uint32_t pat_queue, copy_to, copy_arm, copy_arm_t;   /* pat_queue: the next pattern + 1 (playing: on the next bar) */
+/* (3.5.1, a user on the hub: "the save button just opens a save/load/copy/paste/initialize menu, with a simple list of
+ * memory slots ... no auto-save; re-load the current memory to revert") MEMORY: SAVE tapped opens it. A slot holds
+ * everything: the four tracks' steps, their sounds, the mixer, the effects, MASTER. What plays is the working copy
+ * of the slot loaded last (set.pat); only SAVE writes the flash. KNOB 1 / PRESETS the slot, KNOB 2 / SELECT the
+ * action, SAVE does it; what throws unsaved changes away or overwrites another slot asks once more */
+enum { MA_SAVE, MA_LOAD, MA_COPY, MA_PASTE, MA_INIT, MA_SOUND, NMA };
+static const char *const MA_NAME[NMA] = {"SAVE", "LOAD", "COPY", "PASTE", "INIT", "SOUND"};
+static uint32_t mem_act, mem_arm, mem_arm_t, prog_sel, leave_arm, leave_arm_t, clip_ok;   /* mem_arm: the action + 1 that asks;
+                                                 * leave_arm: a pattern + 1 that was asked for with unsaved changes */
+static uint32_t pat_queue;   /* pat_queue: the next pattern + 1 (playing: on the next bar) */
 enum { CLICK_OFF, CLICK_REC, CLICK_ON, CLICK_COUNT, NCLICK };   /* COUNT: as REC, and REC armed + PLAY counts in a bar */
 static const char *const CLICK_NAME[NCLICK] = {"OFF", "REC", "ON", "COUNT-IN"};
 /* the panel as sloopDX's: a function button tapped (let go, nothing else touched) opens its pages; held, it is a
@@ -146,6 +155,7 @@ static uint32_t smk_pads_held, smk_pad_t0, smk_step_vel;
 #define NM_ALGO "K3"
 #define NM_KNOB4 "K8"
 #define NM_K1 "K5"                              /* (the short names in the sequencer's lines) */
+#define NM_K2 "K6"
 #define NM_K3 "K7"
 #define NM_K4 "K8"
 #define NM_PRESETS "K4"
@@ -162,6 +172,7 @@ static uint32_t smk_pads_held, smk_pad_t0, smk_step_vel;
 #define NM_ALGO "ALGORITHM"
 #define NM_KNOB4 "KNOB 4"
 #define NM_K1 "K1"
+#define NM_K2 "K2"
 #define NM_K3 "K3"
 #define NM_K4 "K4"
 #define NM_PRESETS "PRESETS"
@@ -272,9 +283,9 @@ typedef struct {
     uint8_t mute, solo, fx[NFXP], dv_type, dv_amt, dv_tone, dv_mix, m_vol, m_dj, m_drive, m_comp;
 } mixset_t;
 typedef struct { uint32_t magic; uint8_t prog[NTRK], edited[NTRK]; patch_t p[NTRK]; mixset_t mx; } psnd_t;
-static psnd_t psnd[NPAT], psnd_tmp;
-static uint32_t snd_dirty, snd_t, snd_chg_t;    /* bit n: pattern n's set changed (its slot to save); snd_t: the last look;
-                                                 * snd_chg_t: the last change */
+static psnd_t psnd[NPAT], psnd_tmp;              /* psnd[n]: slot n's set as saved (or, never saved, as it was first played) */
+static psnd_t clip_snd;                         /* MEMORY's COPY: the sounds and mix (the steps in clip_pat) */
+static pattern_t clip_pat __attribute__((section(".pool")));
 static int bytes_same(const void *a, const void *b, uint32_t n) { const uint8_t *x = a, *y = b; while (n--) if (*x++ != *y++) return 0; return 1; }
 static void mx_from_set(mixset_t *m)
 {
@@ -323,8 +334,6 @@ static void snd_capture(uint32_t n)             /* what plays now into pattern n
     s->magic = PSN2_MAGIC;
     for (t = 0; t < NTRK; t++) { s->p[t] = live_p[t]; s->prog[t] = (uint8_t)trk_prog[t]; s->edited[t] = (uint8_t)trk_edited[t]; }
     mx_from_set(&s->mx);
-    snd_dirty |= 1u << (n % NPAT);
-    snd_chg_t = fm1_ms;
 }
 static void snd_target(uint32_t n, patch_t *out)   /* pattern n's four sounds (its effects in track A's, where the engine reads them) */
 {
@@ -343,6 +352,16 @@ static void snd_meta(uint32_t n)                /* pattern n's program numbers a
     mx_to_set(&s->mx);
     set_dirty = 1; set_t = fm1_ms;
 }
+static int patch_same(const patch_t *a, const patch_t *b, uint32_t t)   /* (what the pattern's knob lanes play is no change) */
+{
+    uint32_t i, l;
+    for (i = 0; i < PATCH_BYTES; i++) {
+        if (a->v[i] == b->v[i]) continue;
+        for (l = 0; l < NLANE; l++) if (pat.lane[t][l].param == i) break;
+        if (l == NLANE) return 0;
+    }
+    return 1;
+}
 static int snd_changed(uint32_t n)              /* the sounds and the mix now differ from pattern n's set */
 {
     const psnd_t *s = &psnd[n % NPAT];
@@ -350,10 +369,12 @@ static int snd_changed(uint32_t n)              /* the sounds and the mix now di
     uint32_t t;
     if (s->magic != PSN2_MAGIC) return 1;
     for (t = 0; t < NTRK; t++)
-        if (s->prog[t] != trk_prog[t] || s->edited[t] != trk_edited[t] || !bytes_same(&s->p[t], &live_p[t], sizeof(patch_t))) return 1;
+        if (s->prog[t] != trk_prog[t] || s->edited[t] != trk_edited[t] || !patch_same(&s->p[t], &live_p[t], t)) return 1;
     mx_from_set(&now);
     return !bytes_same(&s->mx, &now, sizeof now);
 }
+
+static int work_dirty(void) { return pat_edited || snd_changed(set.pat); }   /* the working copy differs from its slot */
 
 /* ---- the patterns of 1.5 (two tracks sharing 256 steps, one sector each): read once to bring them over. A plays the
  * program of 1.5, B its own (or A's), both into the effects as before; C and D are off */
@@ -404,6 +425,7 @@ static int pat_from_v1(uint32_t n, pattern_t *p)
 static void pat_fetch(uint32_t n, pattern_t *p)   /* pattern n: its slot, else 1.5's, else empty (its sounds stay in psnd[]) */
 {
     n %= NPAT;
+    if (pend_slot == n + 1u) { if (p != &pat_old) *p = pat_old; return; }   /* (saved, not written yet: that) */
     if (!slot_load(n, p, sizeof *p, &psnd_tmp, sizeof psnd_tmp) && p->magic == PAT_MAGIC) {
         if (p->auto_magic != AUTO_MAGIC) auto_init(p);
         return;
@@ -426,7 +448,40 @@ static void load_pattern(uint32_t n)            /* stopped: pattern n with its s
     snd_meta(n);
     memset(seq_cur, 0, sizeof seq_cur); memset(seq_pg, 0, sizeof seq_pg);
     pat_edited = 0;
-    pat_edit_t = 0;
+}
+
+/* MEMORY's PASTE and INIT: steps, sounds and mix into the working copy, at once (playing too, as UNDO does); the slot
+ * stays the one loaded and the copy counts as changed. s without its magic: the sounds and the mix stay */
+static void undo_save(void);
+static void work_put(const pattern_t *p, const psnd_t *s)
+{
+    uint32_t t, i;
+    undo_save();
+    pat = *p;
+    if (pat.auto_magic != AUTO_MAGIC) auto_init(&pat);
+    if (s->magic == PSN2_MAGIC) {
+        for (t = 0; t < NTRK; t++) { live_p[t] = s->p[t]; trk_prog[t] = s->prog[t] % NPROG; trk_edited[t] = s->edited[t]; set.tprog[t] = (uint8_t)trk_prog[t]; }
+        for (i = 0; i < NFXP; i++) live_p[0].v[P_CHO_RATE + i] = s->mx.fx[i];
+        set.prog = set.tprog[0];
+        mx_to_set(&s->mx);
+        set_dirty = 1; set_t = fm1_ms;
+    }
+    memset(seq_cur, 0, sizeof seq_cur); memset(seq_pg, 0, sizeof seq_pg);
+    pat_edited = 1;
+}
+static void snd_init(psnd_t *s)                 /* INIT: the four first sounds (DARK ARP, FAT BASS, WARM PAD, SOLO LEAD), the
+                                                 * mixer flat, the effects as now; A into the effects as always */
+{
+    uint32_t t;
+    s->magic = PSN2_MAGIC;
+    mx_from_set(&s->mx);
+    for (t = 0; t < NTRK; t++) {
+        s->prog[t] = TPROG_DEF[t]; s->edited[t] = 0;
+        prog_get(TPROG_DEF[t], &s->p[t]);
+        s->mx.lvl[t] = 100; s->mx.pan[t] = 0; s->mx.drv[t] = 0;
+        s->mx.cho[t] = s->mx.dly[t] = s->mx.rev[t] = t ? 0 : 127;
+    }
+    s->mx.mute = s->mx.solo = 0;
 }
 
 static void seq_cursor_set(uint32_t t, uint32_t n)   /* the cursor, and the roll's 16 with it */
@@ -729,13 +784,6 @@ static void draw_header(void)
 {
     char tags[40];
     tags[0] = 0;
-    if (save_armed) {                           /* SAVE armed: the slot it saves into and what is there now */
-        patch_t t;
-        prog_get(save_to, &t);
-        scat(tags, "SAVE HERE? " NM_PRESETS);
-        ui_header(save_to, t.v + NPARAM, 0, tags, seq_trk);
-        return;
-    }
     if (cut_shown_t && fm1_ms + 1u - cut_shown_t < 1000u) {
         char v[12];
         param_value(v, P_CUTOFF, ed_patch(P_CUTOFF)->v[P_CUTOFF]);
@@ -891,7 +939,7 @@ static void draw_page(void)
         if (layer == L_EDIT) { title[0] = 0; scat(title, "EDIT "); title[5] = TRK_L[seq_trk % NTRK]; title[6] = 0; scat(title, ": ERASE"); t = title; }
         else if (page == PG_MIXER && !layer) t = mix_row == 0u ? "MIXER  LEVEL" : mix_row == 1u ? "MIXER  PAN" : mix_row == 2u ? "SEND  CHORUS" : mix_row == 3u ? "SEND  DELAY" : mix_row == 4u ? "SEND  REVERB" : mix_row == 5u ? "SEND  DRIVE" : "MASTER";
         else if (layer == L_GLO) t = "GLO: MUTE SOLO TAP";
-        else if (layer == L_SAVE) t = "SAVE: PATTERNS";
+        else if (layer == L_SAVE) t = "SAVE: DICE";
         else if (layer == L_FX) t = "FX MIX";
         else if (seq_shown()) {                 /* SEQ A, or STEP 5 A while a step is held */
             title[0] = 0;
@@ -904,7 +952,7 @@ static void draw_page(void)
         {
             static char cpu[24];                /* the GLOBAL page: the render time of an audio half (budget 5800 us), SYNC */
             cpu[0] = 0; fmt_u(cpu, ui_render_us); scat(cpu, "us"); scat(cpu, set.sync_int ? " INT" : ctl_ext_quarter ? " CLK" : " AUTO");
-            ui_page(t, k, save_armed ? "SAVE?" : seq_shown() && pat_edited ? "EDITED" : page == PG_GLOBAL && !layer ? cpu : page == PG_OUTPUT && !layer ? LK_NAME[set.link % 3u] : 0);
+            ui_page(t, k, seq_shown() && work_dirty() ? "NOT SAVED" : seq_shown() && pat_edited ? "EDITED" : page == PG_GLOBAL && !layer ? cpu : page == PG_OUTPUT && !layer ? LK_NAME[set.link % 3u] : 0);
         }
     }
 }
@@ -960,7 +1008,7 @@ static void draw_hints(void)
     else if (layer == L_SEQ) ui_hints("WHITE KEYS = STEPS  OCT: PAGE", "F#3-A#4: PAGE 1-8 " NM_HOME ": LOCK", C_AMBER);
     else if (layer == L_EDIT) ui_hints("KEY: ERASE THAT NOTE", "OCT-: UNDO  OCT+: REDO", C_AMBER);
     else if (layer == L_GLO) ui_hints(rec ? "1-4: RECORD A-D  5-8: MUTE" : "1-4: START/STOP A-D 5-8: MUTE", "9-12: SOLO  G5: TAP TEMPO", C_AMBER);
-    else if (layer == L_SAVE) ui_hints("WHITE 1-8: GO  BLACK 1-8: COPY", "+ " NM_SELBTN " PRESSED: NEW SOUND", C_AMBER);
+    else if (layer == L_SAVE) ui_hints(NM_SAVE " TAPPED: MEMORY", "+ " NM_SELBTN " PRESSED: NEW SOUND", C_AMBER);
     else if (layer == L_FX) ui_hints("KNOBS: CHORUS DELAY REVERB", "AND THE DELAY'S TIME", C_AMBER);
     else ui_hints(ROT[r][0], ROT[r][1], C_CREAM);
 }
@@ -1236,30 +1284,37 @@ static void slot_saved(uint32_t n, const pattern_t *p)
     uint32_t t;
     pat_used |= 1u << n;
     for (t = 0; t < NTRK; t++) slot_len[n][t] = p->trk[t].len;
-    snd_dirty &= ~(1u << n);                    /* (its sounds went with it) */
 }
 
-/* another pattern, now (stopped), with its sounds and its mix. This one's edits are written first; a pattern left
- * while playing (pat_old, from the ISR's swap) waits there for the stop */
+/* a pattern asked for while the working copy has unsaved changes: the first time only a warning, the same again
+ * within 3 s goes (and the changes are gone: no auto-save) */
+static int leave_ok(uint32_t n)
+{
+    static char msg[28];
+    if (!work_dirty() || (leave_arm == n + 1u && fm1_ms - leave_arm_t < 3000u)) { leave_arm = 0; return 1; }
+    leave_arm = n + 1u; leave_arm_t = fm1_ms;
+    msg[0] = 0; scat(msg, "NOT SAVED! AGAIN: GO TO "); fmt_u(msg + slen(msg), n + 1u);
+    say(msg);
+    return 0;
+}
+
+/* another pattern, now (stopped), with its sounds and its mix (unsaved changes of this one are dropped) */
 static void pat_switch(uint32_t n)
 {
     static char msg[20];
     n %= NPAT;
-    if (n != set.pat) {
-        if (snd_changed(set.pat)) snd_capture(set.pat);   /* (its instruments stay with it) */
-        if (pat_edited) { pat_dirty = 1; pat_next = n + 1u; return; }   /* saved when quiet, then loaded */
-        load_pattern(n);
-    }
+    load_pattern(n);
     slot_sel = n;
     set_dirty = 1; set_t = fm1_ms;
     msg[0] = 0; scat(msg, "PATTERN "); fmt_u(msg + slen(msg), n + 1u);
-    if (!(pat_used >> n & 1u) && !pat_edited) scat(msg, " (NEW)");
+    if (!(pat_used >> n & 1u)) scat(msg, " (EMPTY)");
     say(msg);
 }
 
 /* stopped, at once; playing, on the next bar: the ISR swaps pat_q in on the downbeat, and its sounds (snd_q) and its
- * mix (mx_q) on the same one, so the new pattern's first note plays its own instrument */
-static void pat_go(uint32_t n)
+ * mix (mx_q) on the same one, so the new pattern's first note plays its own instrument. sure: asked already (MEMORY);
+ * n == set.pat with sure: back to the saved one (LOAD = revert) */
+static void pat_go_x(uint32_t n, uint32_t sure)
 {
     static char msg[20];
     n %= NPAT;
@@ -1269,15 +1324,11 @@ static void pat_go(uint32_t n)
         fm1_irq_on();
         if (pat_queue) { say("ONE MOMENT"); return; }
     }
+    if (n == set.pat && !sure) { say("STAYS"); return; }
+    if (!sure && !leave_ok(n)) return;
     if (!ctl_seq_run) { pat_switch(n); return; }
-    if (n == set.pat) { say("STAYS"); return; }
-    if (pend_slot && pat_edited) { say("STOP ONCE: THE LAST ONE SAVES"); return; }   /* (pat_old holds one, unsaved) */
-    if (snd_changed(set.pat)) snd_capture(set.pat);
-    if (pend_slot == n + 1u) {                  /* back to the one left with its edits (not saved yet): those */
-        pat_q = pat_old; pend_slot = 0; q_edited = 1;
-    } else { pat_fetch(n, &pat_q); q_edited = 0; }
-    ctl_pat_keep = !pend_slot;                  /* (the one left comes back in pat_old, with its edits; pat_old waiting
-                                                 * for the stop is never overwritten) */
+    pat_fetch(n, &pat_q);
+    ctl_pat_keep = 0;                           /* (pat_old is MEMORY's: a save waiting for the stop) */
     snd_target(n, snd_q); ctl_snd_swap = 1;
     mx_prepare(n); ctl_mx_swap = 1;
     pat_queue = n + 1u;
@@ -1286,35 +1337,111 @@ static void pat_go(uint32_t n)
     msg[0] = 0; scat(msg, "PATTERN "); fmt_u(msg + slen(msg), n + 1u); scat(msg, " NEXT");
     say(msg);
 }
+static void pat_go(uint32_t n) { pat_go_x(n, 0); }
 
-/* this pattern into slot n, with its sounds (a used one: again); written when stopped and quiet */
-static void pat_copy(uint32_t n)
+/* SAVE: the working copy into slot n (it is n's from now on). Written when stopped and quiet (an erase stalls the
+ * sound); until then it waits in pat_old, and a LOAD of n takes it from there */
+static void pat_save_to(uint32_t n)
 {
     static char msg[24];
+    uint32_t t;
     n %= NPAT;
-    msg[0] = 0;
-    if (n == set.pat) { say("THAT IS THIS ONE"); return; }
-    if (pat_used >> n & 1u && (copy_arm != n + 1u || fm1_ms - copy_arm_t > 3000u)) {
-        copy_arm = n + 1u; copy_arm_t = fm1_ms;
-        scat(msg, "AGAIN: OVERWRITE "); fmt_u(msg + slen(msg), n + 1u);
-        say(msg);
-        return;
+    if (pend_slot && pend_slot != n + 1u) { say("STOP ONCE: A SAVE WAITS"); return; }
+    if (pat_queue) { say("ONE MOMENT"); return; }
+    pat_old = pat;
+    pat_old.magic = PAT_MAGIC;
+    {
+        psnd_t *s = &psnd[n];
+        s->magic = PSN2_MAGIC;
+        for (t = 0; t < NTRK; t++) { s->p[t] = live_p[t]; s->prog[t] = (uint8_t)trk_prog[t]; s->edited[t] = (uint8_t)trk_edited[t]; }
+        mx_from_set(&s->mx);
     }
-    copy_arm = 0;
-    copy_to = n + 1u;
-    say(ctl_seq_run ? "COPIES WHEN STOPPED" : "COPYING");
+    pend_slot = n + 1u;
+    slot_saved(n, &pat_old);
+    set.pat = (uint8_t)n; slot_sel = n;
+    set_dirty = 1; set_t = fm1_ms;
+    pat_edited = 0;
+    msg[0] = 0; scat(msg, ctl_seq_run ? "SAVED: WRITES AT THE STOP" : "SAVED IN "); if (!ctl_seq_run) fmt_u(msg + slen(msg), n + 1u);
+    say(msg);
 }
 
-static void pat_save_to(uint32_t n)             /* the pattern now into slot n (written when stopped and quiet) */
+/* MEMORY: what SAVE does there (the action on the chosen slot) */
+static int mem_ask(uint32_t need, const char *q)   /* the second press within 3 s goes; the first one asks */
 {
-    n %= NPAT;
-    if (n != set.pat && pend_slot == n + 1u) pend_slot = 0;   /* (what waited for that slot is overwritten anyway) */
-    set.pat = (uint8_t)n;
-    set_dirty = 1; set_t = fm1_ms;
-    pat_dirty = 1;
-    pat_edited = 1;
-    pat_save_say = 1;
-    say(ctl_seq_run ? "SAVES WHEN STOPPED" : "SAVING");
+    if (!need || (mem_arm == mem_act + 1u && fm1_ms - mem_arm_t < 3000u)) { mem_arm = 0; return 1; }
+    mem_arm = mem_act + 1u; mem_arm_t = fm1_ms;
+    say(q);
+    return 0;
+}
+static void mem_do(void)
+{
+    static char msg[28];
+    uint32_t n = slot_sel % NPAT, used = pat_used >> n & 1u;
+    msg[0] = 0;
+    switch (mem_act) {
+    case MA_SAVE:
+        scat(msg, "OVERWRITE "); fmt_u(msg + slen(msg), n + 1u); scat(msg, "? " NM_SAVE " AGAIN");
+        if (mem_ask(n != set.pat && used, msg)) pat_save_to(n);
+        break;
+    case MA_LOAD:
+        if (!mem_ask(work_dirty(), n == set.pat ? "BACK TO THE SAVED? " NM_SAVE " AGAIN" : "NOT SAVED! " NM_SAVE " AGAIN: LOAD")) break;
+        pat_go_x(n, 1);
+        if (n == set.pat && !ctl_seq_run) say("BACK TO THE SAVED ONE");
+        break;
+    case MA_COPY:
+        if (n == set.pat) {                     /* (this one: as it is now, changes and all) */
+            uint32_t t;
+            clip_pat = pat;
+            clip_snd.magic = PSN2_MAGIC;
+            for (t = 0; t < NTRK; t++) { clip_snd.p[t] = live_p[t]; clip_snd.prog[t] = (uint8_t)trk_prog[t]; clip_snd.edited[t] = (uint8_t)trk_edited[t]; }
+            mx_from_set(&clip_snd.mx);
+        } else if (!used) { say("EMPTY: NOTHING TO COPY"); break; }
+        else { pat_fetch(n, &clip_pat); clip_snd = psnd[n]; }
+        clip_ok = 1;
+        scat(msg, "COPIED "); fmt_u(msg + slen(msg), n + 1u); scat(msg, ": PASTE IT");
+        say(msg);
+        break;
+    case MA_PASTE:
+        if (!clip_ok) { say("COPY ONE FIRST"); break; }
+        if (pat_queue) { say("ONE MOMENT"); break; }
+        if (!mem_ask(work_dirty(), "REPLACES THE CHANGES? " NM_SAVE " AGAIN")) break;
+        work_put(&clip_pat, &clip_snd);
+        say("PASTED: SAVE KEEPS IT");
+        break;
+    case MA_INIT:
+        if (pat_queue) { say("ONE MOMENT"); break; }
+        if (!mem_ask(1, "ALL EMPTY? " NM_SAVE " AGAIN")) break;
+        pat_init(&pat_q);
+        { psnd_t s; snd_init(&s); work_put(&pat_q, &s); }
+        say("NEW: SAVE KEEPS IT");
+        break;
+    default: {                                  /* SOUND: the track's sound into a program (the 99 of the PRESETS) */
+        uint32_t p = prog_sel % NPROG, t = seq_trk % NTRK, u;
+        patch_t sp = live_p[t];
+        scat(msg, "REPLACE PROGRAM "); fmt_u(msg + slen(msg), p + 1u); scat(msg, "?");
+        if (!mem_ask(p != trk_prog[t], msg)) break;
+        prog_put(p, &sp);
+        trk_prog[t] = p; trk_edited[t] = 0; set.tprog[t] = (uint8_t)p; if (!t) set.prog = (uint8_t)p;
+        set_dirty = 1;
+        for (u = 0; u < NTRK; u++)              /* (another track on the same program, unchanged: it hears it too) */
+            if (u != t && trk_prog[u] == p && !trk_edited[u]) { live_p[u] = sp; if (!u) fx_keep(&live_p[0]); }
+        msg[0] = 0; scat(msg, "SOUND IN PROGRAM "); fmt_u(msg + slen(msg), p + 1u);
+        say(msg);
+    }
+    }
+}
+static void mem_open(void)                      /* SAVE tapped: MEMORY, on the slot loaded, SAVE chosen */
+{
+    slot_sel = set.pat; mem_act = MA_SAVE; mem_arm = 0;
+    prog_sel = ed_prog();
+}
+static void mem_turn(int32_t e, uint32_t what)  /* 0: the slot (SOUND: the program), 1: the action; a question is off */
+{
+    int32_t sg = e > 0 ? 1 : -1;
+    mem_arm = 0;
+    if (what) mem_act = (uint32_t)clampi((int32_t)mem_act + sg, 0, NMA - 1);
+    else if (mem_act == MA_SOUND) prog_sel = (uint32_t)(((int32_t)(prog_sel % NPROG) + e + (int32_t)NPROG * 4) % (int32_t)NPROG);
+    else slot_sel = (uint32_t)clampi((int32_t)slot_sel + sg, 0, NPAT - 1);
 }
 
 static void seq_clear_cursor(void)              /* EDIT tapped: the cursor's step empty, the cursor on */
@@ -1334,10 +1461,9 @@ static void seq_view_turn(uint32_t knob, int32_t e)
     seqtrk_t *tk = &pat.trk[t];
     int32_t sg = e > 0 ? 1 : -1;
     step_t *st;
-    if (seq_view == SV_SLOTS) {                 /* SLOT; GO there; COPY this one there */
-        if (knob == 0) slot_sel = (uint32_t)clampi((int32_t)slot_sel + sg, 0, NPAT - 1);
-        else if (knob == 2u && e > 0) pat_go(slot_sel);
-        else if (knob == 3u && e > 0) pat_copy(slot_sel);
+    if (seq_view == SV_SLOTS) {                 /* MEMORY: the slot (SOUND: the program), the action */
+        if (knob == 0) mem_turn(e, 0);
+        else if (knob == 1u) mem_turn(e, 1);
         return;
     }
     if (seq_view == SV_TRACKS && (knob == 0 || knob == 2u)) knob ^= 2u;   /* (TRACKS: CUTOFF on knob 1, LENGTH on 3) */
@@ -1400,7 +1526,7 @@ static void seq_view_knob(knob_view_t *k, uint32_t i)
 {
     static const char *const L[NSV][4] = {{"CUTOFF", "LEVEL", "LENGTH", "QUANT"}, {"STEP", "NOTE", "GATE", "VELO"},
                                           {"STEP", "RATCHET", "CHANCE", "ON/OFF"}, {"LENGTH", "DIV", "SWING", "TRANSP"},
-                                          {"SLOT", "", "GO", "COPY"}};
+                                          {"SLOT", "ACTION", "", ""}};
     uint32_t t = seq_trk, len = pat.trk[t].len, n;
     seqtrk_t *tk = &pat.trk[t];
     const step_t *st = seq_step(t, len ? seq_cur[t] % len : 0u);
@@ -1409,9 +1535,9 @@ static void seq_view_knob(knob_view_t *k, uint32_t i)
     k->present = k->label[0] != 0;
     k->bip = 0; k->v = 0; k->max = 0;
     if (seq_view == SV_SLOTS) {
-        if (i == 0) { fmt_u(v, slot_sel + 1u); k->v = (int32_t)slot_sel; k->max = NPAT - 1; }
-        else if (i == 2u) scat(v, slot_sel == set.pat ? "HERE" : "TURN");
-        else if (i == 3u) scat(v, copy_arm == slot_sel + 1u && fm1_ms - copy_arm_t <= 3000u ? "AGAIN" : "TURN");
+        if (i == 0 && mem_act == MA_SOUND) { k->label = "PROGRAM"; fmt_u(v, prog_sel % NPROG + 1u); k->v = (int32_t)(prog_sel % NPROG); k->max = NPROG - 1; }
+        else if (i == 0) { fmt_u(v, slot_sel + 1u); k->v = (int32_t)slot_sel; k->max = NPAT - 1; }
+        else if (i == 1u) { scat(v, MA_NAME[mem_act % NMA]); k->v = (int32_t)mem_act; k->max = NMA - 1; }
         return;
     }
     if (seq_view == SV_TRACKS) {                /* (CUTOFF on knob 1, LENGTH on 3: as VIBE's 3.0) */
@@ -1536,7 +1662,7 @@ static void seq_info_line(char *s, uint16_t *c)
     *c = C_AMBER;
     if (layer == L_SEQ) { scat(s, step_held >= 0 ? "KNOBS EDIT THE HELD STEP" : "WHITE KEYS = 16 STEPS"); return; }
     if (layer == L_EDIT) { scat(s, "KEY: ERASE  OCT: UNDO/REDO"); return; }
-    if (layer == L_SAVE) { scat(s, "WHITE 1-8: GO  BLACK: COPY"); return; }
+    if (layer == L_SAVE) { scat(s, "+ " NM_SELBTN ": NEW SOUND"); return; }
     if (layer == L_GLO) { scat(s, "1-4 START  5-8 MUTE  9-12 SOLO"); return; }
     if (layer) { scat(s, "LET GO: BACK"); return; }
     *c = C_CREAM;
@@ -1641,37 +1767,54 @@ static void seq_tracks_line(char *s, uint16_t *c)
     scat(s, "  GLO+1-4: START");
 }
 
-static void draw_seq_slots(void)
+static void draw_seq_slots(void)                /* MEMORY */
 {
-    static char txt[NBLOB][16], l1[40], l2[32], l3[32];
+    static char txt[NBLOB][16], l1[40], l3[40];
     const char *p[NBLOB];
-    uint32_t i;
+    uint32_t i, dirty = work_dirty(), asking = mem_arm && fm1_ms - mem_arm_t < 3000u;
     uint16_t c = C_AMBER;
-    for (i = 0; i < NPAT; i++) {
-        uint32_t t;
-        txt[i][0] = 0;
-        if (!(pat_used >> i & 1u) && i != set.pat) scat(txt[i], "EMPTY");
-        else {                                  /* how many tracks are on, the longest: 4 TRK 16 */
-            uint32_t on = 0, mx = 0;
-            for (t = 0; t < NTRK; t++) {
-                uint32_t l = i == set.pat ? pat.trk[t].len : slot_len[i][t];
-                if (l) { on++; if (l > mx) mx = l; }
-            }
-            fmt_u(txt[i], on); scat(txt[i], " TRK "); fmt_u(txt[i] + slen(txt[i]), mx);
+    if (mem_act == MA_SOUND) {                  /* the programs, eight at a time: where the track's sound goes */
+        uint32_t base = prog_sel % NPROG / 8u * 8u, t = seq_trk % NTRK, now = 8u;
+        for (i = 0; i < 8u; i++) {
+            patch_t q;
+            txt[i][0] = 0;
+            if (base + i < NPROG) { prog_get(base + i, &q); memcpy(txt[i], q.v + NPARAM, PATCH_NAME); txt[i][PATCH_NAME] = 0; }
+            p[i] = txt[i];
+            if (base + i == trk_prog[t]) now = i;
         }
-        p[i] = txt[i];
+        ui_seq_slots(p, base + 8u <= NPROG ? 0xFFu : (1u << (NPROG - base)) - 1u, prog_sel % NPROG - base, now, trk_edited[t], base);
+    } else {
+        for (i = 0; i < NPAT; i++) {
+            uint32_t t;
+            txt[i][0] = 0;
+            if (!(pat_used >> i & 1u) && i != set.pat) scat(txt[i], "EMPTY");
+            else if (!(pat_used >> i & 1u)) scat(txt[i], "NEW");
+            else {                              /* how many tracks are on, the longest: 4 TRK 16 */
+                uint32_t on = 0, mx = 0;
+                for (t = 0; t < NTRK; t++) {
+                    uint32_t l = i == set.pat ? pat.trk[t].len : slot_len[i][t];
+                    if (l) { on++; if (l > mx) mx = l; }
+                }
+                fmt_u(txt[i], on); scat(txt[i], " TRK "); fmt_u(txt[i] + slen(txt[i]), mx);
+            }
+            p[i] = txt[i];
+        }
+        ui_seq_slots(p, pat_used, slot_sel, set.pat, dirty, 0);
     }
-    ui_seq_slots(p, pat_used, slot_sel, set.pat, pat_edited);
-    l1[0] = l2[0] = l3[0] = 0;
-    if (toast && fm1_ms - toast_t < 1500u) scat(l1, toast);
-    else {
-        scat(l1, "NOW: PATTERN "); fmt_u(l1 + slen(l1), set.pat + 1u); scat(l1, pat_edited ? "*" : "");
-        if (pat_queue) { scat(l1, "  NEXT: "); fmt_u(l1 + slen(l1), pat_queue); }
+    l1[0] = l3[0] = 0;
+    if (toast && fm1_ms - toast_t < 3000u) scat(l1, toast);
+    else if (mem_act == MA_SOUND) {
+        char l[2] = {TRK_L[seq_trk % NTRK], 0};
+        scat(l1, "TRACK "); scat(l1, l); scat(l1, "'S SOUND INTO PROGRAM "); fmt_u(l1 + slen(l1), prog_sel % NPROG + 1u);
         c = C_CREAM;
+    } else {
+        scat(l1, "LOADED: "); fmt_u(l1 + slen(l1), set.pat + 1u); scat(l1, dirty ? "  * NOT SAVED" : "  SAVED");
+        if (pat_queue) { scat(l1, "  NEXT: "); fmt_u(l1 + slen(l1), pat_queue); }
+        if (clip_ok) scat(l1, "  CLIP");
+        c = dirty ? C_RED : C_CREAM;
     }
-    scat(l2, NM_K1 " SLOT  " NM_K3 " GO  " NM_K4 " COPY HERE");
-    scat(l3, NM_PRESETS ": PATTERN  " NM_SAVE ": SAVE");
-    ui_seq_lines(l1, c, l2, l3);
+    scat(l3, mem_act == MA_SOUND ? NM_K1 " PROG  " NM_K2 " ACTION  " NM_SAVE ": DO" : NM_K1 " SLOT  " NM_K2 " ACTION  " NM_SAVE ": DO");
+    ui_mem_lines(l1, c, MA_NAME, NMA, mem_act, asking, l3);
 }
 
 static void draw_seq_knobs(void)
@@ -1735,9 +1878,9 @@ static uint32_t cycle_page(uint32_t first, uint32_t count)   /* a button steps t
 static void keys_in(uint32_t notes_only)
 {
     uint32_t keys = fm1_in.notes, down = keys & ~keys_prev, up = keys_prev & ~keys, base = (uint32_t)(KEY0 + 12 * set.oct), k;
-    for (k = 0; k < 27u; k++) {             /* the keys by layer: EDIT erases, SEQ steps, GLO mix, SAVE patterns; else notes */
+    for (k = 0; k < 27u; k++) {             /* the keys by layer: EDIT erases, SEQ steps, GLO mix; else notes */
         if (down >> k & 1u) {
-            uint32_t ks = layer == L_EDIT ? 2u : steps_on() ? 1u : layer == L_GLO ? 3u : layer == L_SAVE ? 4u : 0u;
+            uint32_t ks = layer == L_EDIT ? 2u : steps_on() ? 1u : layer == L_GLO ? 3u : 0u;
             if (notes_only && ks) continue;     /* not a note: the main loop's (its bit stays new) */
             keys_prev |= 1u << k;
             held_key[k] = (uint8_t)(base + k);
@@ -1749,14 +1892,7 @@ static void keys_in(uint32_t notes_only)
                 say("ERASED");
             } else if (key_step[k] == 1u) seq_key_down(k);
             else if (key_step[k] == 3u) { glo_key(k); layer_used = 1; }
-            else if (key_step[k] == 4u) {   /* SAVE held: white keys 1-8 = pattern 1-8 */
-                static char msg[16];
-                layer_used = 1;
-                if (KEY_STEP[k] >= 0 && KEY_STEP[k] < (int32_t)NPAT) {   /* white 1-8: go there; black 1-8: copy there */
-                    if ((uint32_t)KEY_STEP[k] != set.pat || pat_queue) pat_go((uint32_t)KEY_STEP[k]);
-                    else { msg[0] = 0; scat(msg, "PATTERN "); fmt_u(msg + slen(msg), set.pat + 1u); say(msg); }
-                } else if (KEY_PAGE[k] >= 0) pat_copy((uint32_t)KEY_PAGE[k]);
-            } else {
+            else {
                 midi_send(0x90u | MIDI_OUT_CH, held_key[k], KEY_VEL(k));
                 note_in(1, held_key[k], KEY_VEL(k));
                 if (notes_shown()) dirty_steps = dirty_page = 1;
@@ -2070,7 +2206,7 @@ static void app_main(void)
          * then only lets it go); PLAY, REC, OCT work inside a layer */
         b = fm1_input_edges(&rel);
         if (set.link) link_buttons(b, rel);     /* (3.4) VIBE LINK ON: the buttons go out as well */
-        if (b & ~(1u << BTN_SAVE)) pat_save_armed = 0;   /* (SAVE PATTERN?: any other button says no) */
+        if (b & ~(1u << BTN_SAVE)) mem_arm = 0;   /* (MEMORY's question: any other button says no) */
         {
             uint32_t mh = is_seq_page(page) && seq_view == SV_STEPS && !layer && (fm1_in.buttons >> BTN_SEL & 1u);
             if (mh != more_held) { more_held = mh; dirty_page = dirty_steps = 1; }   /* (SELECT held in STEPS: STEP+) */
@@ -2098,33 +2234,24 @@ static void app_main(void)
                     if (layer != LL[k] || layer_lock) continue;
                     if (!layer_used && fm1_ms - layer_t < 600u) {   /* a tap: the button's pages */
                         if (LL[k] == L_SEQ) {   /* SEQ: the full-screen sequencer; there, its next view (as SLOOP) */
-                            static const char *const HINT[NSV] = {NM_ALGO ": TRACK A-D", "KEYS WRITE  " NM_SELBTN " HELD: MORE", "MORE PER STEP", "THE TRACK: LENGTH ..", "THE 8 PATTERNS"};
+                            static const char *const HINT[NSV] = {NM_ALGO ": TRACK A-D", "KEYS WRITE  " NM_SELBTN " HELD: MORE", "MORE PER STEP", "THE TRACK: LENGTH ..", "SAVE LOAD COPY PASTE INIT"};
                             if (is_seq_page(page)) { seq_view = (seq_view + 1u) % NSV; if (seq_view == SV_MORE) seq_view = SV_TRACK; }   /* (STEP+ = SELECT held in STEPS) */
                             else { seq_back = page; np = PG_SEQ; seq_view = SV_TRACKS; }
-                            if (seq_view == SV_SLOTS) slot_sel = pat_queue ? pat_queue - 1u : set.pat;
+                            if (seq_view == SV_SLOTS) mem_open();
                             say(HINT[seq_view]);
                             entry_reset();
                         } else if (LL[k] == L_EDIT && is_seq_page(page) && SV_ENTRY(seq_view)) seq_clear_cursor();
                         else if (LL[k] == L_EDIT) np = cycle_page(PG_OSC1, 6);
                         else if (LL[k] == L_FX) np = cycle_page(PG_CHORUS, 4);
                         else if (LL[k] == L_GLO) np = page == PG_GLOBAL ? PG_OUTPUT : PG_GLOBAL;
-                        else if (is_seq_page(page)) {   /* in the sequencer: SAVE PATTERN? - SAVE again saves (as zp12:
-                                                 * now; playing, at the stop), anything else: no */
-                            if (pat_save_armed && fm1_ms - pat_save_t < 3000u) { pat_save_armed = 0; pat_save_to(set.pat); }
-                            else { static char m[24]; pat_save_armed = 1; pat_save_t = fm1_ms; m[0] = 0; scat(m, "SAVE PATTERN "); fmt_u(m + slen(m), set.pat + 1u); scat(m, "? " NM_SAVE); say(m); }
+                        else if (is_seq_page(page) && seq_view == SV_SLOTS) { mem_do(); entry_reset(); }   /* MEMORY: SAVE does it */
+                        else {                  /* SAVE tapped: MEMORY (the full-screen sequencer's last view) */
+                            if (!is_seq_page(page)) { seq_back = page; np = PG_SEQ; }
+                            seq_view = SV_SLOTS;
+                            mem_open();
+                            say("MEMORY");
                             entry_reset();
-                        } else if (save_armed) {      /* SAVE tapped twice: into the slot (PRESETS in between: another) */
-                            uint32_t n = save_to % NPROG, t = seq_trk % NTRK, u;
-                            patch_t sp = live_p[t];
-                            prog_put(n, &sp);
-                            trk_prog[t] = n; trk_edited[t] = 0; set.tprog[t] = (uint8_t)n; if (!t) set.prog = (uint8_t)n;
-                            set_dirty = 1;
-                            for (u = 0; u < NTRK; u++)  /* (another track on the same program, unchanged: it hears it too) */
-                                if (u != t && trk_prog[u] == n && !trk_edited[u]) { live_p[u] = sp; if (!u) fx_keep(&live_p[0]); }
-                            save_armed = 0;
-                            say("SAVED");
-                            dirty_hdr = dirty_tags = 1;
-                        } else { save_armed = 1; save_t = fm1_ms; save_to = ed_prog(); dirty_hdr = 1; }
+                        }
                     }
                     layer = L_NONE;
                     memset(erase_on, 0, sizeof erase_on);
@@ -2207,11 +2334,9 @@ static void app_main(void)
         if (b & (1u << BTN_SEL) && layer == L_SAVE) {   /* SAVE held + SELECT pressed: a new sound (dice) */
             randomize();
             layer_used = 1;
-            save_armed = 0;
-            dirty_hdr = 1;
             dirty_hdr = dirty_tags = dirty_page = 1;
         }
-        if (save_armed && fm1_ms - save_t > 3000u) { save_armed = 0; dirty_page = dirty_hdr = 1; }
+        if (mem_arm && fm1_ms - mem_arm_t > 3000u) { mem_arm = 0; dirty_page = dirty_steps = 1; }
         fx_sync();
         if (rec_wait) {                         /* REC waits for a track's bar: there it is */
             uint32_t w = rec_wait - 1u;
@@ -2233,10 +2358,9 @@ static void app_main(void)
         }
 
         /* encoders */
-        if ((e = link_enc_take(ENC_PRESETS)) != 0 && save_armed) {           /* SAVE armed: PRESETS picks the slot to save into ("save as") */
-            save_to = (uint32_t)((int32_t)save_to + e + (int32_t)NPROG * 4) % NPROG;
-            save_t = fm1_ms;
-            dirty_hdr = 1;
+        if ((e = link_enc_take(ENC_PRESETS)) != 0 && is_seq_page(page) && seq_view == SV_SLOTS && !layer) {   /* MEMORY: PRESETS = the slot */
+            mem_turn(e, 0);
+            dirty_page = dirty_steps = 1;
         } else if (e) {                         /* the chosen track's sound */
             trk_load(seq_trk, (uint32_t)((int32_t)trk_prog[seq_trk % NTRK] + e + (int32_t)NPROG * 4) % NPROG);
             dirty_hdr = dirty_page = dirty_tags = dirty_steps = 1;
@@ -2248,7 +2372,10 @@ static void app_main(void)
                                                  * the MIXER the next pattern (on the bar), else the tempo */
             static char msg[16];
             uint32_t t = seq_trk % NTRK, len = pat.trk[t].len;
-            if (is_seq_page(page) && SV_ENTRY(seq_view) && !layer) {
+            if (is_seq_page(page) && seq_view == SV_SLOTS && !layer) {   /* MEMORY: SELECT = the action */
+                mem_turn(e, 1);
+                dirty_page = dirty_steps = 1;
+            } else if (is_seq_page(page) && SV_ENTRY(seq_view) && !layer) {
                 if (len) {
                     int32_t c = (int32_t)(seq_cur[t] % len) + (e > 0 ? 16 : -16);
                     seq_cursor_set(t, (uint32_t)(c < 0 ? (c + (int32_t)len * 16) % (int32_t)len : c % (int32_t)len));
@@ -2356,12 +2483,6 @@ static void app_main(void)
                 if (set.mix_solo >> k & 1u) lit |= 1u << WK[8u + k]; else glow |= 1u << WK[8u + k];
             }
             if (fm1_ms - beat_t < 90u && ctl_seq_run) lit |= 1u << WK[15]; else glow |= 1u << WK[15];
-        } else if (layer == L_SAVE) {           /* the pattern now lit, the others glow */
-            static const uint8_t WK[8] = {0, 2, 4, 6, 7, 9, 11, 12};
-            for (k = 0; k < NPAT; k++) { if (k == set.pat) lit |= 1u << WK[k]; else glow |= 1u << WK[k]; }
-            for (k = 0; k < 27u; k++)            /* the black keys: copy targets, glowing where a pattern is saved */
-                if (KEY_PAGE[k] >= 0 && pat_used >> KEY_PAGE[k] & 1u) glow |= 1u << k;
-            if (pat_queue && (fm1_ms / 200u) & 1u) lit |= 1u << WK[pat_queue - 1u];   /* the next one blinks */
         } else {
             for (k = 0; k < NV; k++)
                 if (ui_vlevel[k] > 300 && ui_vnote[k] >= base && ui_vnote[k] < base + 27u)
@@ -2397,7 +2518,7 @@ static void app_main(void)
         fm1_led_key(BTN_LFO, page >= PG_LFO && page <= PG_LFO2);
         fm1_led_key(BTN_FX, page >= PG_CHORUS && page <= PG_DRIVE);
         fm1_led_key(BTN_GLO, page >= PG_OUTPUT && page <= PG_GLOBAL);
-        fm1_led_key(BTN_SAVE, save_armed);
+        fm1_led_key(BTN_SAVE, (is_seq_page(page) && seq_view == SV_SLOTS) || pend_slot);
 #if BOARD_SMK37
         smk_leds();                             /* the step pads, FADER BANK, < > */
 #endif
@@ -2516,33 +2637,17 @@ static void app_main(void)
             if (set_dirty) settings_save(&set, sizeof set);
             set_dirty = 0;
         }
-        /* the patterns: saved by themselves (3 s after an edit, once stopped), as asked, or left while playing;
-         * only when stopped and quiet (an erase stalls the sound) */
-        if (pat_edited && !pat_dirty) {
-            if (!pat_edit_t) pat_edit_t = fm1_ms | 1u;
-            else if (fm1_ms - pat_edit_t > 3000u && !ctl_seq_run && !rec && step_held < 0 && !entry_n && !layer) pat_dirty = 1;
-        }
+        /* (3.5.1) no auto-save: a pattern is written only by MEMORY's SAVE (pat_save_to), below */
         if (ui_pat_swapped != swap_seen) {      /* the ISR swapped the next pattern in on the downbeat, its sounds and mix too */
             static char msg[16];
-            uint32_t left = set.pat, t;
             swap_seen = ui_pat_swapped;
             RING_TAKE();
-            {   /* the one left keeps its instruments as they sounded to the end, and its mixer */
-                psnd_t *ps = &psnd[left];
-                ps->magic = PSN2_MAGIC;
-                for (t = 0; t < NTRK; t++) {
-                    if (ui_snd_swapped) ps->p[t] = snd_old[t];
-                    ps->prog[t] = (uint8_t)trk_prog[t]; ps->edited[t] = (uint8_t)trk_edited[t];
-                }
-                mx_from_set(&ps->mx);
-                ui_snd_swapped = 0;
-            }
-            if (pat_edited && ctl_pat_keep) pend_slot = left + 1u;   /* (its edits in pat_old, saved at the stop) */
+            ui_snd_swapped = 0;                 /* (the one left: as saved in psnd[], its changes are gone) */
             set.pat = (uint8_t)(pat_queue ? pat_queue - 1u : set.pat);
             snd_meta(set.pat);
             pat_queue = 0;
             memset(seq_cur, 0, sizeof seq_cur); memset(seq_pg, 0, sizeof seq_pg);
-            pat_edited = q_edited; pat_edit_t = 0; slot_sel = set.pat; q_edited = 0;
+            pat_edited = 0; slot_sel = set.pat;
             set_dirty = 1; set_t = fm1_ms;
             msg[0] = 0; scat(msg, "PATTERN "); fmt_u(msg + slen(msg), set.pat + 1u);
             say(msg);
@@ -2554,57 +2659,13 @@ static void app_main(void)
             pat_switch(n);
             dirty_page = dirty_steps = dirty_hdr = 1;
         }
-        if (!pat_queue && fm1_ms - snd_t > 1500u) {   /* the sounds now changed (a program, a knob, the mix): this pattern's set follows */
-            snd_t = fm1_ms;
-            if (snd_changed(set.pat)) snd_capture(set.pat);
-        }
-        if ((pat_dirty || pend_slot || copy_to || snd_dirty) && !ctl_seq_run && engine_quiet()
-            && (pat_dirty || pend_slot || copy_to || (fm1_ms - snd_chg_t > 3000u && step_held < 0 && !entry_n && !layer))) {   /* (an erase stalls the sound: stopped and quiet) */
+        if (pend_slot && !ctl_seq_run && engine_quiet() && !pat_queue) {   /* a SAVE, written now: stopped and quiet (an
+                                                 * erase stalls the sound) */
             static char msg[20];
-            uint32_t k;
-            if (pend_slot) {                    /* the pattern left while playing, with its edits */
-                uint32_t n = pend_slot - 1u;
-                if (!slot_save(n, &pat_old, sizeof pat_old, &psnd[n], sizeof psnd[n])) slot_saved(n, &pat_old);
-                pend_slot = 0;
-            }
-            if (pat_dirty) {
-                int bad;
-                if (snd_changed(set.pat)) snd_capture(set.pat);
-                bad = slot_save(set.pat, &pat, sizeof pat, &psnd[set.pat], sizeof psnd[set.pat]);
-                if (!bad) slot_saved(set.pat, &pat);
-                if (pat_save_say) {             /* (by itself, or before a load: no message) */
-                    msg[0] = 0; scat(msg, bad ? "SAVE FAILED " : "SAVED IN "); fmt_u(msg + slen(msg), set.pat + 1u); say(msg);
-                }
-                pat_dirty = pat_edited = pat_save_say = 0;
-                pat_edit_t = 0;
-            }
-            if (copy_to) {                      /* this pattern with its sounds into another slot */
-                uint32_t n = copy_to - 1u;
-                int bad;
-                if (snd_changed(set.pat)) snd_capture(set.pat);
-                psnd[n] = psnd[set.pat];
-                bad = slot_save(n, &pat, sizeof pat, &psnd[n], sizeof psnd[n]);
-                if (!bad) slot_saved(n, &pat);
-                msg[0] = 0; scat(msg, bad ? "COPY FAILED " : "COPIED TO "); fmt_u(msg + slen(msg), copy_to); say(msg);
-                copy_to = 0;
-            }
-            for (k = 0; k < NPAT && snd_dirty; k++) {   /* a pattern whose sounds alone changed: its slot again */
-                if (!(snd_dirty >> k & 1u)) continue;
-                if (!(pat_used >> k & 1u) && !(k == set.pat && pat_edited)) { snd_dirty &= ~(1u << k); continue; }   /* (an empty one: in RAM) */
-                if (k == set.pat) {
-                    if (!slot_save(k, &pat, sizeof pat, &psnd[k], sizeof psnd[k])) { slot_saved(k, &pat); pat_edited = pat_dirty = 0; pat_edit_t = 0; }
-                } else {
-                    pat_fetch(k, &pat_q);       /* (stopped: pat_q is free) */
-                    if (!slot_save(k, &pat_q, sizeof pat_q, &psnd[k], sizeof psnd[k])) slot_saved(k, &pat_q);
-                }
-                snd_dirty &= ~(1u << k);
-            }
-            dirty_page = dirty_steps = dirty_hdr = 1;
-        }
-        if (pat_next && !pat_dirty) {           /* a load that waited for the save */
-            uint32_t n = pat_next - 1u;
-            pat_next = 0;
-            pat_switch(n);
+            uint32_t n = pend_slot - 1u;
+            int bad = slot_save(n, &pat_old, sizeof pat_old, &psnd[n], sizeof psnd[n]);
+            pend_slot = 0;
+            if (bad) { msg[0] = 0; scat(msg, "SAVE FAILED "); fmt_u(msg + slen(msg), n + 1u); say(msg); }
             dirty_page = dirty_steps = dirty_hdr = 1;
         }
     }

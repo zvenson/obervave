@@ -127,6 +127,16 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**MEMORY (2026-11-12, dev on v3, not on the device yet; a hub user: "simplify saving ... no auto-save, re-load to revert"):**
+SAVE tapped = the MEMORY page (seq view SV_SLOTS): 8 slots, each = steps of 4 tracks + sounds + mixer + FX + MASTER;
+K1/PRESETS slot, K2/SELECT action SAVE LOAD COPY PASTE INIT SOUND (a track's sound into a program), SAVE does it,
+what drops unsaved changes or overwrites asks once more (mem_ask). No auto-save of patterns/sounds any more (the
+settings' globals still save themselves): psnd[n] = slot n as saved, `work_dirty()` = pat_edited || snd_changed
+(knob-lane params ignored); a pattern change with unsaved changes warns first (leave_ok). A SAVE snapshots into
+pat_old + psnd[n] (pend_slot) and is written when stopped and quiet; ctl_pat_keep is always 0 now. The old SAVE
+layer keys (go/copy) and the program save-as are gone. Pool 332 of 344 KB (clip_pat). tests/memory*.txt.
+All older text below about "autosave" / "SAVE held + keys" is superseded.
+
 **3.3.2 (2026-11-02, FM-1_9533, tag v3.3.2, released by the user without a hardware test ("baller hoch")):** FM-1 Mirror (Patrick F.
 Kellogg's app; his screen_mirror module, MIT, in firmware/src/screen_mirror/): lcd.c's LCD_MIRROR hooks hand every RAMWR's
 pixels to obv_mirror.h, which makes rows of them; the app's hello (F0 7D 'F' 'S' 00/01 F7) is taken from the platform's

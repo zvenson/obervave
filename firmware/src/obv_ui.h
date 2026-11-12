@@ -490,14 +490,20 @@ static void ui_seq_tline(const char *l, uint16_t c)   /* TRACKS: the line under 
     cv_blit(0, 168);
 }
 
-/* PATTERNS: the eight slots as two columns of four (selected: framed in red; the one playing: a blue bar) */
-static void ui_seq_slots(const char *const *txt, uint32_t used, uint32_t sel, uint32_t now, uint32_t now_edited)
+/* MEMORY: eight tiles as two columns of four (selected: framed in red; the one loaded: a blue bar, '*' when it has
+ * unsaved changes). base: the first tile's number - 1 (the slots 1-8, or SOUND's programs eight at a time) */
+static void ui_seq_slots(const char *const *txt, uint32_t used, uint32_t sel, uint32_t now, uint32_t now_edited, uint32_t base)
 {
     uint32_t i;
     cv_begin(240, 112, C_PANEL);
     for (i = 0; i < 8u; i++) {
         int32_t x = (int32_t)(i % 2u) * 120 + 2, y = (int32_t)(i / 2u) * 28 + 2;
-        char num[3] = {(char)('1' + i), i == now && now_edited ? '*' : 0, 0};
+        uint32_t v = base + i + 1u;
+        char num[4], *q = num;
+        if (v >= 10u) *q++ = (char)('0' + v / 10u);
+        *q++ = (char)('0' + v % 10u);
+        if (i == now && now_edited) *q++ = '*';
+        *q = 0;
         cv_rect(x, y, 116, 24, i == sel ? C_RULE : C_KNOB);
         if (i == now) cv_rect(x, y, 4, 24, STRIPE[1]);
         cv_text(x + 10, y + 4, &FONT_S, num, i == now ? C_AMBER : C_CREAM);
@@ -508,6 +514,22 @@ static void ui_seq_slots(const char *const *txt, uint32_t used, uint32_t sel, ui
         }
     }
     cv_blit(0, 24);
+}
+
+/* MEMORY's lines: the message, the actions as tabs (the chosen one lit), the hint */
+static void ui_mem_lines(const char *l1, uint16_t c1, const char *const *act, uint32_t nact, uint32_t chosen, uint32_t asking, const char *l3)
+{
+    uint32_t i, w = 240u / nact;
+    cv_begin(240, 52, C_PANEL);
+    cv_text(4, 0, &FONT_S, l1, c1);
+    for (i = 0; i < nact; i++) {
+        int32_t x = (int32_t)(i * w);
+        uint16_t bg = i == chosen ? (asking ? C_RED : C_AMBER) : C_KNOB;
+        cv_rect(x + 1, 17, (int32_t)w - 2, 16, bg);
+        cv_text(x + ((int32_t)w - text_w(&FONT_S, act[i])) / 2, 18, &FONT_S, act[i], i == chosen ? C_PANEL : C_DIMT);
+    }
+    cv_text(4, 36, &FONT_S, l3, C_DIMT);
+    cv_blit(0, 136);
 }
 
 static void ui_seq_lines(const char *l1, uint16_t c1, const char *l2, const char *l3)

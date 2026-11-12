@@ -1,0 +1,51 @@
+# (3.5.1) MEMORY: SAVE tapped opens it; K1 / PRESETS the slot, K2 / SELECT the action, SAVE does it; no auto-save
+# (FM-1 ids: btn 9 SAVE, 8 HOME, 11 SEQ, 12 PLAY; enc 0 SELECT, 2 K1, 3 K2, 6 PRESETS)
+3000 btn 9
+3300 shot
+# PERFORM, the cutoff down: the working copy changed
+3600 btn 8
+3800 enc 2 -20
+4200 btn 9
+4500 shot
+# SAVE into 1 (the one loaded: no question)
+4700 btn 9
+5000 shot
+# slot 2 (empty): SAVE there, no question; the working copy is 2's now
+5200 enc 2 1
+5400 btn 9
+5700 shot
+# the cutoff up (PERFORM), back to MEMORY, LOAD 2: asks, again = back to the saved one
+5900 btn 8
+6000 enc 2 30
+6100 btn 9
+6200 enc 3 1
+6400 btn 9
+6600 shot
+6800 btn 9
+7100 shot
+# COPY 1, PASTE into the working copy (2), INIT asks, again: all new
+7300 enc 2 -1
+7400 enc 3 1
+7600 btn 9
+7800 enc 3 1
+7900 btn 9
+8100 shot
+8300 enc 3 1
+8400 btn 9
+8600 shot
+8700 btn 9
+8900 shot
+# SOUND: the track's sound into program 70
+9100 enc 3 1
+9200 enc 6 5
+9400 shot
+9600 btn 9
+9700 btn 9
+9800 shot
+# with unsaved changes (INIT) the pattern turn (SELECT, sequencer view) warns first, the second goes
+10000 btn 11
+10200 enc 0 1
+10400 shot
+10600 enc 0 1
+10900 shot
+11500 end
