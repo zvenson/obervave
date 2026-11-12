@@ -13,7 +13,13 @@ its sounds and its mix. 99 programs (70 factory sounds).
 
 <p align="center"><img src="docs/screen.png" width="240" alt="OberVave's screen: program 01 DARK ARP, the ARP page with four knobs, the scope, eight voice LEDs"></p>
 
-> **Released: 3.3.2** (`docs/firmware/obervave-3.3.2.fwsc`, identity `FM-1_9533`): OberVave's screen, live and as big as you like, on a computer or phone with
+> **Released: 3.5** (`docs/firmware/obervave-3.5.fwsc`, identity `FM-1_9535`): **saving made simple**. SAVE opens
+> MEMORY, the 8 slots; a slot holds everything (the steps of the four tracks, their sounds, the mixer, the effects,
+> MASTER); KNOB 2 picks SAVE, LOAD, COPY, PASTE, INIT or SOUND, SAVE does it. Nothing saves itself any more: LOAD the
+> slot again to go back to how it was saved. Also new: a **backup** of everything to a file and back from the browser,
+> and **VIBE LINK** (the FM-1 as the VIBE FM's controller). All versions: [CHANGELOG.md](CHANGELOG.md).
+>
+> **3.3.2** (identity `FM-1_9533`): OberVave's screen, live and as big as you like, on a computer or phone with
 > [FM-1 Mirror](https://github.com/pfkellogg/fm1-mirror) by Patrick F. Kellogg – for players who cannot read the 1.54-inch
 > display. OberVave sends its screen only while FM-1 Mirror is open and asks for it; playing is unchanged.
 >

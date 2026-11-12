@@ -74,10 +74,18 @@ jobs:
         with:
           subject-path: build/obervave-*.fwsc
 
+      - name: Release notes from CHANGELOG.md (tags only; the hub's firmware page reads that file too)
+        if: github.ref_type == 'tag'
+        run: |
+          awk -v v="${GITHUB_REF_NAME#v}" '/^## /{p = ($2 == v); next} p' CHANGELOG.md > build/NOTES.md
+          test -s build/NOTES.md || echo "See [CHANGELOG.md](CHANGELOG.md)." > build/NOTES.md
+          cat build/NOTES.md
+
       - name: Release (tags only)
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
+          body_path: build/NOTES.md
           files: |
             build/obervave-*.fwsc
             build/SHA256SUMS

@@ -127,7 +127,7 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
-**MEMORY (2026-11-12, dev on v3, not on the device yet; a hub user: "simplify saving ... no auto-save, re-load to revert"):**
+**3.5 (2026-11-12, tag v3.5, FM-1_9535; MEMORY tested by the user on the FM-1, the backup round trip checked on it here; SMK-37 stays 3.3-beta; CHANGELOG.md = the release text, the CI takes its section; a hub user: "simplify saving ... no auto-save, re-load to revert"):**
 SAVE tapped = the MEMORY page (seq view SV_SLOTS): 8 slots, each = steps of 4 tracks + sounds + mixer + FX + MASTER;
 K1/PRESETS slot, K2/SELECT action SAVE LOAD COPY PASTE INIT SOUND (a track's sound into a program), SAVE does it,
 what drops unsaved changes or overwrites asks once more (mem_ask). No auto-save of patterns/sounds any more (the
