@@ -36,6 +36,7 @@ typedef struct {
     int32_t lfo_fade;                           /* Q15 */
     uint32_t seq;                               /* allocation order */
     uint8_t note, vel, gate;                    /* gate: the key (or the arp) holds it */
+    uint8_t at;                                 /* polyphonic aftertouch: the note's level 0..127 (127 = as played) */
     uint8_t part;                               /* the track whose sound it is, 0..3 */
     uint8_t grp;                                /* a card of its sound's MONO / UNISON group */
 } voice_t;
@@ -59,7 +60,7 @@ static voice_t vc[NV];
 static uint32_t vseq, rr;                       /* allocation counter, round-robin pointer */
 
 /* main loop -> ISR: note events */
-typedef struct { uint8_t type, note, vel, part; } nev_t;   /* type 1 on, 0 off; part: the track's sound */
+typedef struct { uint8_t type, note, vel, part; } nev_t;   /* type 1 on, 0 off, 2 pressure (vel 0..127); part: the track's sound */
 #define NQ 64u
 static nev_t nq[NQ];
 static volatile uint32_t nq_w, nq_r;
@@ -96,7 +97,7 @@ static int16_t scope[SCOPE_N];
 static volatile uint32_t scope_state, scope_stride = 4;   /* 0 idle, 1 armed, 2 running, 3 done */
 
 /* ---- the held notes (ISR): in order of pressing, physically down or held by the pedal / latch */
-static struct { uint8_t note, vel, phys; } held[NPART][NHELD];   /* per sound: its keys */
+static struct { uint8_t note, vel, phys, at; } held[NPART][NHELD];   /* per sound: its keys (at: its aftertouch) */
 static uint32_t nheld[NPART];
 static uint32_t rnd_state = 0x9E3779B9u;
 
@@ -123,6 +124,22 @@ static void held_remove(uint32_t p, uint32_t note)
     nheld[p] = j;
 }
 
+/* polyphonic aftertouch is kept per held key: the voices it starts later (its arp's steps, a MONO key coming back)
+ * take it; a key no longer held is back to full for whatever plays its note next */
+static uint32_t held_at(uint32_t p, uint32_t note)
+{
+    uint32_t i;
+    for (i = 0; i < nheld[p]; i++)
+        if (held[p][i].note == note) return held[p][i].at;
+    return 127u;
+}
+static void voices_at(uint32_t p, uint32_t note, uint32_t at)   /* held or dying away */
+{
+    uint32_t v;
+    for (v = 0; v < NV; v++)
+        if (vc[v].note == note && vc[v].part == p) vc[v].at = (uint8_t)at;
+}
+
 /* ---- vintage: each voice card has its own small offsets, scaled by the knob */
 static const int16_t VINT_TUNE8[NCARD] = {-20, 12, 7, -15, 18, -9, 3, -17};     /* +-8 cents */
 static const int16_t VINT_CUT8[NCARD] = {-300, 250, 120, -380, 60, 330, -180, 220};   /* +-1.5 semitones */
@@ -147,6 +164,7 @@ static void voice_start(voice_t *v, uint32_t part, uint32_t note, uint32_t vel, 
     v->det8 = det8;
     v->target16 = (int32_t)note << 16;
     v->pitch16 = pv[P_GLIDE] ? pt[part].last_pitch16 : v->target16;
+    v->at = (uint8_t)held_at(part, note);
     v->fe.stage = E_ATT;
     v->ae.stage = E_ATT;
     v->lfo_blk = 0;
@@ -252,6 +270,7 @@ static void voice_trigger(uint32_t part, uint32_t note, uint32_t vel)
             int32_t pan = n > 1 ? ((int32_t)(128u * i) / (int32_t)(n - 1u) - 64) * spread >> 7 : 0;
             if (legato) {                       /* a key still down: slide, no retrigger */
                 v->note = (uint8_t)note;
+                v->at = (uint8_t)held_at(part, note);
                 v->target16 = (int32_t)note << 16;
                 if (!pv[P_GLIDE]) v->pitch16 = v->target16;
                 v->det8 = d;
@@ -283,6 +302,7 @@ static void voice_release(uint32_t part, uint32_t note, uint32_t from_arp)
                 voice_t *w = &vc[grp_v[part][i]];
                 if (w->part != part || !w->grp) continue;   /* (a card another sound took meanwhile) */
                 w->note = held[part][nheld[part] - 1u].note;
+                w->at = held[part][nheld[part] - 1u].at;
                 w->target16 = (int32_t)w->note << 16;
                 if (!pv[P_GLIDE]) w->pitch16 = w->target16;
             }
@@ -322,7 +342,7 @@ static void click_start(uint32_t accent)        /* beat 1 higher and louder */
 }
 
 /* ---- the arpeggiators (per block, 0.36 ms steps): one per sound, each on its own keys and its own ARP settings */
-typedef struct { uint32_t cnt, period, gate_at, pos, dir, sounding, note, was_on; } arp_t;
+typedef struct { uint32_t cnt, period, gate_at, pos, dir, sounding, note, key, was_on; } arp_t;   /* key: the one note is from */
 static arp_t arp[NPART];
 
 /* ISR -> main loop: the notes the arps play (REC records them, not the keys that feed them), each with the key's
@@ -394,7 +414,9 @@ static void arp_step(uint32_t p)
     a->note = (uint32_t)clampi((int32_t)sorted[idx] + 12 * (int32_t)(k / n), 0, 127);
     for (i = 0; i < n; i++)                     /* the velocity of that key */
         if (held[p][i].note == sorted[idx]) break;
+    a->key = sorted[idx];
     voice_trigger(p, a->note, i < n ? held[p][i].vel : 100u);
+    if (i < n) voices_at(p, a->note, held[p][i].at);   /* (an octave up: the key's aftertouch too) */
     arp_post(p, 1, a->note, i < n ? held[p][i].vel : 100u);
     a->sounding = 1;
     ui_arp_step++;
@@ -459,6 +481,7 @@ static void ev_note_on(uint32_t p, uint32_t note, uint32_t vel)
     held[p][nheld[p]].note = (uint8_t)note;
     held[p][nheld[p]].vel = (uint8_t)vel;
     held[p][nheld[p]].phys = 1;
+    held[p][nheld[p]].at = 127u;                /* a new press: full, until pressure says otherwise */
     nheld[p]++;
     if (arp_on) {
         if (nheld[p] == 1u) { arp[p].pos = 0; arp[p].cnt = 0xFFFFFFFFu; }   /* the first key: a step right away */
@@ -492,6 +515,17 @@ static void ev_sustain_up(uint32_t p)           /* the pedal / its HOLD let go: 
     }
 }
 
+/* polyphonic aftertouch: the key's level for its voices, held or dying away, its arp's note and what it starts later */
+static void ev_pressure(uint32_t p, uint32_t note, uint32_t val)
+{
+    uint32_t i;
+    if (val > 127u) val = 127u;
+    for (i = 0; i < nheld[p]; i++)
+        if (held[p][i].note == note) held[p][i].at = (uint8_t)val;
+    voices_at(p, note, val);
+    if (arp[p].sounding && arp[p].key == note) voices_at(p, arp[p].note, val);
+}
+
 static void parts_off(uint32_t p)               /* a panic: its keys, its arp, its notes */
 {
     nheld[p] = 0;
@@ -514,7 +548,8 @@ static void engine_events(void)
         e = nq[nq_r % NQ];
         p = e.part % NPART;
         nq_r++;
-        if (e.type) ev_note_on(p, e.note, e.vel);
+        if (e.type == 1u) ev_note_on(p, e.note, e.vel);
+        else if (e.type == 2u) ev_pressure(p, e.note, e.vel);
         else ev_note_off(p, e.note);
     }
 }
@@ -689,6 +724,7 @@ static void voice_block(voice_t *v, uint32_t card)
     trem = 32767 - (((32767 - lfo) * g->lfo_ad) >> 8);
     v->amp0 = v->amp1;
     a = (int32_t)(((int64_t)(v->ae.level >> 9) * velg >> 15) * trem >> 15);
+    if (v->at < 127u) a = (int32_t)(((int64_t)a * ((int32_t)v->at * v->at * 32767 / 16129)) >> 15);   /* aftertouch: a square law */
     v->amp1 = (a * g->gain_q12) >> 12;          /* the sound's VOLUME */
     ui_vlevel[card] = a;
     ui_vnote[card] = v->note;

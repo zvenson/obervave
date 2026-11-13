@@ -1,0 +1,24 @@
+# polyphonic aftertouch (A0 note level): a held note fades and comes back, one note of a chord fades alone, an arp's
+# steps (its octave too) take the key's level, a new press of the key starts at full again; MIDI on channel 1
+3000 midi 0xC0 12 0
+3100 midi 0x90 60 100
+3600 midi 0xA0 60 64
+4100 midi 0xA0 60 0
+4600 midi 0xA0 60 127
+5100 midi 0x80 60 0
+6000 midi 0x90 48 100
+6000 midi 0x90 64 100
+6500 midi 0xA0 64 0
+7500 midi 0x80 48 0
+7500 midi 0x80 64 0
+8500 midi 0x90 60 100
+8800 midi 0xA0 60 0
+9200 midi 0x80 60 0
+9400 midi 0x90 60 100
+9900 midi 0x80 60 0
+10500 midi 0xC0 0 0
+10600 midi 0x90 57 100
+11600 midi 0xA0 57 0
+12600 midi 0xA0 57 127
+13600 midi 0x80 57 0
+15000 end

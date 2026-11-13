@@ -1967,6 +1967,7 @@ static void midi_in(uint32_t notes_only)
             uint32_t t = ch - set.midi_ch;
             if (kind == 0x90u && d2) note_event_p(t, 1, d1, d2);
             else if (kind == 0x80u || kind == 0x90u) note_event_p(t, 0, d1, 0);
+            else if (kind == 0xA0u) note_event_p(t, 2, d1, d2);   /* polyphonic aftertouch: that note's level */
             else if (kind == 0xC0u && d1 < NPROG) { trk_load(t, d1); dirty_hdr = dirty_page = dirty_tags = dirty_steps = 1; }
             else if (kind == 0xB0u && cc_map[d1]) {
                 uint32_t p = cc_map[d1] - 1u;
@@ -1984,6 +1985,7 @@ static void midi_in(uint32_t notes_only)
             note_in(0, d1, 0);
             dirty_page |= rec || is_seq_page(page); dirty_steps = 1;
         }
+        else if (kind == 0xA0u) note_event_p(note_part[d1 & 127u], 2, d1, d2);   /* polyphonic aftertouch */
         else if (kind == 0xE0u) ctl_bend = (int32_t)(d1 | d2 << 7) - 8192;
         else if (kind == 0xC0u && d1 < NPROG) { trk_load(set.midi_ch ? 0u : seq_trk, d1); dirty_hdr = dirty_page = dirty_tags = dirty_steps = 1; }
         else if (kind == 0xB0u) {
