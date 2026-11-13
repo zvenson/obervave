@@ -3,6 +3,14 @@
 OberVave for the M-VAVE FM-1 (and, as a beta, the M-Vave SMK-37). Newest first. Each release is on
 [GitHub](https://github.com/zvenson/obervave/releases) and on [the Firmware Hub](https://thefirmwarehub.com/firmware/obervave/).
 
+## 3.5.1 – 2026-11-13
+
+- **MASTER works again:** VOLUME, DJ FILTER, DRIVE and COMP on the mixer's MASTER row now change the sound as you turn
+  them – before, they only took effect with the next pattern change. Reported by dmochen
+  ([#19](https://github.com/zvenson/obervave/issues/19)) – thank you!
+- The browser simulator has the same fix.
+- Identity `FM-1_9535` (as 3.5).
+
 ## 3.5 – 2026-11-12
 
 - **Saving made simple: MEMORY.** SAVE opens one page with the 8 memory slots. A slot holds everything: the steps of
