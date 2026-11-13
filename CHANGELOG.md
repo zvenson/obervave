@@ -3,6 +3,19 @@
 OberVave for the M-VAVE FM-1 (and, as a beta, the M-Vave SMK-37). Newest first. Each release is on
 [GitHub](https://github.com/zvenson/obervave/releases) and on [the Firmware Hub](https://thefirmwarehub.com/firmware/obervave/).
 
+## 3.5.2 – 2026-11-13
+
+- **Locked to an external MIDI clock:** with a master that sends START and clock (SYNC AUTO), the sequencer, the
+  tracks and the arp now stay on the master's beat for good. Before, the clock only set the tempo and the beat slowly
+  slid away (up to half a second in five minutes). Each quarter is now gently nudged back onto the master's (at most
+  ~3 %, inaudible); a tempo change takes effect on the next beat, and the tempo is there after one quarter instead of
+  four, so a master that starts its clock with PLAY leads from the second beat. Without a START (the clock running,
+  OberVave started with its own PLAY) it follows the tempo as before. Written and tested on an FM-1 by adub671
+  ([#25](https://github.com/zvenson/obervave/pull/25)), reported by dmochen and others
+  ([#10](https://github.com/zvenson/obervave/issues/10), [#17](https://github.com/zvenson/obervave/issues/17)) –
+  thank you!
+- Identity `FM-1_9535` (as 3.5).
+
 ## 3.5.1 – 2026-11-13
 
 - **MASTER works again:** VOLUME, DJ FILTER, DRIVE and COMP on the mixer's MASTER row now change the sound as you turn
