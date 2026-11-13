@@ -271,6 +271,9 @@ static void mix_apply(void)
     }
     ctl_mix_off = solo ? ~solo & ((1u << NTRK) - 1u) : set.mix_mute & ((1u << NTRK) - 1u);
     ctl_dv_type = set.dv_type; ctl_dv_amt = set.dv_amt; ctl_dv_tone = set.dv_tone; ctl_dv_mix = set.dv_mix;   /* (VIBE) */
+    /* MASTER to the sound at once (#19, dmochen: VOLUME, DJ FILTER, DRIVE, COMP did nothing – they reached it only with
+     * the next pattern's change) */
+    ctl_m_vol = set.m_vol; ctl_m_dj = set.m_dj; ctl_m_drive = set.m_drive; ctl_m_comp = set.m_comp;
 }
 static uint32_t trk_silent(uint32_t t) { return ctl_mix_off >> (t % NTRK) & 1u; }
 
