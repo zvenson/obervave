@@ -181,3 +181,5 @@ Jon Dattorro's 1997 plate.
 OberVave is inspired by the classic 8-voice poly synths of 1979-84 (Oberheim's OB-X and OB-8 era). Those names are
 trademarks of their owners; OberVave is not made by or affiliated with them, and none of the marks appear in the
 firmware. "M-VAVE" and "FM-1" belong to their owners too.
+
+You can also try OberVave in the browser, no flashing needed, in the free community [FM-1 Emulator](https://fm1-emulator.atst.tools/).
