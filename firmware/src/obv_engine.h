@@ -110,6 +110,7 @@ typedef struct {
     int32_t fenv_amt, keytrk, velflt, lfo_pd, lfo_fd, lfo_pwd, lfo_ad, wheel_q, bend8, env_o2, det_fine8;
     int32_t lvl1, lvl2, lvln, drive_q12, reso_k, lad_k, vint, sus_f, sus_a, gain_q12, morph_q;
     int32_t cut_sm, reso_sm;                    /* CUTOFF and RESO slewed (Q8), ~25 ms: a CC sweep in semitone steps glides */
+    int32_t bend_sm;                            /* the bend slewed (Q16 semitones), ~6 ms: a wheel in coarse steps glides */
     uint32_t pw1_base, pw2_base, w1, w2, ftype, sync_on, xmod_q, glide_k;
 } part_t;
 static part_t pt[NPART] = {{&live_p[0], 0, 0, 0, 0, 60 << 16}, {&live_p[1], 0, 0, 0, 0, 60 << 16},
@@ -595,7 +596,11 @@ static void block_globals(part_t *g)            /* a sound's derived numbers, on
     d = pv[P_LFO_PWM]; g->lfo_pwd = (d * d) >> 7;
     g->lfo_ad = pv[P_LFO_AMP];
     g->wheel_q = pv[P_MOD_DEPTH];               /* the knob and the mod wheel (CC 1) are the same value */
-    g->bend8 = (ctl_bend * pv[P_BEND] * 256) >> 13;
+    d = ((ctl_bend * pv[P_BEND] * 256) >> 13) << 8;   /* (MIDI bends come every few ms, often 7-bit; the SMK's wheel
+                                                 * has ~100 positions a side: unslewed each one is a step) */
+    g->bend_sm += (d - g->bend_sm) >> 4;        /* tau = 16 blocks = 5.8 ms */
+    if (g->bend_sm - d < 16 && d - g->bend_sm < 16) g->bend_sm = d;
+    g->bend8 = (g->bend_sm + 128) >> 8;
     g->env_o2 = (int32_t)pv[P_ENV_O2] - 64;
     g->det_fine8 = ((int32_t)pv[P_O2_FINE] - 64) * 2;
     d = pv[P_O1_LVL]; g->lvl1 = (d * d) >> 7;
