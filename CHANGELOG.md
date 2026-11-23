@@ -3,6 +3,16 @@
 OberVave for the M-VAVE FM-1 (and, as a beta, the M-Vave SMK-37). Newest first. Each release is on
 [GitHub](https://github.com/zvenson/obervave/releases) and on [the Firmware Hub](https://thefirmwarehub.com/firmware/obervave/).
 
+## 3.5.3 – 2026-11-23
+
+- **Smooth pitch bend:** the bend now glides over a few milliseconds instead of jumping to each new value. A wheel
+  only reports in steps (most MIDI keyboards send 128, the SMK-37's wheel about a hundred a side), and with a wider
+  BEND range each one was an audible step; now it is one sweep. The glide lags the wheel by about 6 ms. Noticed on
+  the SMK-37 – thank you!
+- **SMK-37 (beta):** the first SMK-37 packages since 3.3-beta, so they bring 3.5's MEMORY page, the backup, the
+  MASTER fix (3.5.1) and the locked MIDI clock (3.5.2) to the SMK-37 Pro, Elite and MKE-P37 as well.
+- Identity `FM-1_9535` (as 3.5); SMK-37 `_9535`.
+
 ## 3.5.2 – 2026-11-13
 
 - **Locked to an external MIDI clock:** with a master that sends START and clock (SYNC AUTO), the sequencer, the
