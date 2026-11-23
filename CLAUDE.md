@@ -127,6 +127,11 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**3.5.3 (2026-11-23, tag v3.5.3, FM-1_9535; the SMK-37 packages 3.5.3 too, the first since 3.3-beta; released on the user's
+go without a device test):** the pitch bend slews (`bend_sm` in part_t, Q16, tau 16 blocks = 5.8 ms; tests/bend.txt): a
+7-bit MIDI bend or the SMK's wheel (~100 positions a side) stepped audibly at a wide BEND range. SMKSYNTH (an SMK-37
+fork of OberVave) slews the same way, which is how the user noticed.
+
 **3.5 (2026-11-12, tag v3.5, FM-1_9535; MEMORY tested by the user on the FM-1, the backup round trip checked on it here; SMK-37 stays 3.3-beta; CHANGELOG.md = the release text, the CI takes its section; a hub user: "simplify saving ... no auto-save, re-load to revert"):**
 SAVE tapped = the MEMORY page (seq view SV_SLOTS): 8 slots, each = steps of 4 tracks + sounds + mixer + FX + MASTER;
 K1/PRESETS slot, K2/SELECT action SAVE LOAD COPY PASTE INIT SOUND (a track's sound into a program), SAVE does it,
