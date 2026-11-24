@@ -214,6 +214,9 @@ static uint32_t mq_w, mq_r;
 static int midi_get(uint8_t *st, uint8_t *d1, uint8_t *d2)
 {
     if (mq_r == mq_w) return 0;
+#ifdef STALLTEST                                 /* (tests/clock_sync_test.py --stall: a main loop busy drawing) */
+    if ((fm1_ms / 100u) & 1u) return 0;
+#endif
     *st = mq[mq_r % 64u][0]; *d1 = mq[mq_r % 64u][1]; *d2 = mq[mq_r % 64u][2];
     mq_r++;
     return 1;
@@ -380,6 +383,9 @@ static void platform_poll(void)                 /* one call = one millisecond */
         } else if (script[step].st) {
             mq[mq_w % 64u][0] = script[step].st; mq[mq_w % 64u][1] = script[step].d1; mq[mq_w % 64u][2] = script[step].d2;
             mq_w++;
+#ifdef MIDI_RT_HOOK
+            if (script[step].st >= 0xF8u) MIDI_RT_HOOK(script[step].st);   /* (as usb.c: clock and transport as they arrive) */
+#endif
         } else if (script[step].btn >= 200) {
             host_rel |= 1u << (script[step].btn - 200);
             fm1_in.buttons &= ~(1u << (script[step].btn - 200));

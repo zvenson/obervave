@@ -16,6 +16,9 @@
  * Integers only (no FPU, no 64-bit division); tests/host.c runs this on a computer. */
 static void app_idle(void);
 #define LCD_IDLE() app_idle()                   /* (lcd.c: while the DMA runs) */
+#include <stdint.h>
+static void midi_rt(uint32_t st);
+#define MIDI_RT_HOOK(st) midi_rt(st)            /* (usb.c, midi_uart.c: clock and transport as they arrive) */
 #define LCD_MIRROR 1                            /* (lcd.c: what is painted also goes to FM-1 Mirror – obv_mirror.h) */
 #include "platform.c"
 #include "obv_mirror.h"
@@ -1839,7 +1842,8 @@ static void draw_seq_knobs(void)
 /* the keys and MIDI in: read by the main loop, and while the screen is drawn (app_idle, notes only), so the notes
  * of a chord or among a stream of CCs are not held up by a redraw (a knob page is ~30 ms on the SPI alone) */
 static uint32_t dirty_hdr = 1, dirty_page = 1, dirty_tags = 1, dirty_steps = 1;
-static uint32_t keys_prev, clk_n, clk_t0, clk_last, ext_clk, idle_ok;
+static uint32_t keys_prev, idle_ok;
+static volatile uint32_t clk_n, clk_t0, clk_last, ext_clk;   /* (midi_rt, in TIMER5)*/
 static uint8_t held_key[27], key_step[27];
 static int notes_shown(void) { return seq_shown() || rec; }   /* the only screens a note changes */
 
@@ -1919,6 +1923,38 @@ static void keys_in(uint32_t notes_only)
     }
 }
 
+/* MIDI clock and transport, taken where they arrive (the USB / TRS poll in TIMER5, never inside a render): the
+ * quarters are measured in rendered frames, so a reading put off by the main loop (a page drawn, ~30-100 ms) moved
+ * the beats and the master's phase with it: a page change lost the sync (issue: "browsing through pages") */
+static void midi_rt(uint32_t st)
+{
+    if (set.sync_int) return;               /* (SYNC INTERNAL) */
+    if (st == 0xF8u) {                      /* clock: 24 per quarter. The tempo from 4 quarters (96 clocks) in rendered
+                                             * frames, rounded to 48 as our own (quarter_len); taken only when it moves
+                                             * by more than 0.3 %: the clock's jitter must not wobble the steps */
+        if (ctl_ext_lock && ext_clk++ % 24u == 0u) ctl_ext_beats++;   /* (a master's quarter: the phase lock, obv_seq.h) */
+        if (!clk_n || fm1_ms - clk_last > 250u) { clk_n = 0; clk_t0 = eng_t; }
+        clk_last = fm1_ms;
+        if (++clk_n == 25u && !ctl_ext_quarter) {   /* (no tempo yet: one quarter's guess, so a master that starts
+                                             * its clock with PLAY leads from the second beat, not the fifth) */
+            uint32_t q = (eng_t - clk_t0 + 24u) / 48u * 48u;
+            if (q > FS / 5u && q < FS * 8u / 5u) ctl_ext_quarter = q;
+        }
+        if (clk_n == 97u) {
+            uint32_t q = ((eng_t - clk_t0) / 4u + 24u) / 48u * 48u, d;
+            if (q > FS / 5u && q < FS * 8u / 5u) {
+                d = q > ctl_ext_quarter ? q - ctl_ext_quarter : ctl_ext_quarter - q;
+                if (!ctl_ext_quarter || d * 1000u > 3u * q) ctl_ext_quarter = q;
+            }
+            clk_n = 1; clk_t0 = eng_t;
+        }
+    } else if (st == 0xFAu || st == 0xFBu) {   /* start / continue: the arp and the sequencer from the top */
+        ctl_arp_restart = 1; clk_n = 0;
+        ctl_ext_lock = 1; ext_clk = 0;      /* (the next clock is the master's downbeat) */
+        ctl_seq_restart = 1; ctl_seq_run = 1;
+    } else if (st == 0xFCu) { ctl_seq_run = 0; ctl_ext_lock = 0; }
+}
+
 static uint8_t midi_back[4];                    /* a message left for the main loop (app_idle met a program change) */
 static void midi_in(uint32_t notes_only)
 {
@@ -1933,35 +1969,8 @@ static void midi_in(uint32_t notes_only)
         }
         ch = (st & 15u) + 1u; kind = st & 0xF0u;
         if (set.sync_int && (st == 0xF8u || st == 0xFAu || st == 0xFBu || st == 0xFCu)) continue;   /* (SYNC INTERNAL) */
-        if (st == 0xF8u) {                  /* clock: 24 per quarter. The tempo from 4 quarters (96 clocks) in rendered
-                                             * frames, rounded to 48 as our own (quarter_len); taken only when it moves
-                                             * by more than 0.3 %: the clock's jitter must not wobble the steps */
-            if (ctl_ext_lock && ext_clk++ % 24u == 0u) ctl_ext_beats++;   /* (a master's quarter: the phase lock, obv_seq.h) */
-            if (!clk_n || fm1_ms - clk_last > 250u) { clk_n = 0; clk_t0 = eng_t; }
-            clk_last = fm1_ms;
-            if (++clk_n == 25u && !ctl_ext_quarter) {   /* (no tempo yet: one quarter's guess, so a master that starts
-                                                 * its clock with PLAY leads from the second beat, not the fifth) */
-                uint32_t q = (eng_t - clk_t0 + 24u) / 48u * 48u;
-                if (q > FS / 5u && q < FS * 8u / 5u) ctl_ext_quarter = q;
-            }
-            if (clk_n == 97u) {
-                uint32_t q = ((eng_t - clk_t0) / 4u + 24u) / 48u * 48u, d;
-                if (q > FS / 5u && q < FS * 8u / 5u) {
-                    d = q > ctl_ext_quarter ? q - ctl_ext_quarter : ctl_ext_quarter - q;
-                    if (!ctl_ext_quarter || d * 1000u > 3u * q) ctl_ext_quarter = q;
-                }
-                clk_n = 1; clk_t0 = eng_t;
-            }
-            continue;
-        }
-        if (st == 0xFAu || st == 0xFBu) {   /* start / continue: the arp and the sequencer from the top */
-            ctl_arp_restart = 1; clk_n = 0;
-            ctl_ext_lock = 1; ext_clk = 0;      /* (the next clock is the master's downbeat) */
-            ctl_seq_restart = 1; ctl_seq_run = 1;
-            dirty_tags = dirty_steps = 1;
-            continue;
-        }
-        if (st == 0xFCu) { ctl_seq_run = 0; ctl_ext_lock = 0; dirty_tags = dirty_steps = 1; continue; }
+        if (st == 0xF8u) continue;          /* (counted as it came in: midi_rt) */
+        if (st == 0xFAu || st == 0xFBu || st == 0xFCu) { dirty_tags = dirty_steps = 1; continue; }
         if (st >= 0xF0u) continue;
         if (set.midi_ch && ch > set.midi_ch && ch < set.midi_ch + NTRK) {   /* the next three channels: tracks B-D */
             uint32_t t = ch - set.midi_ch;

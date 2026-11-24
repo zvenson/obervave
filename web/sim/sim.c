@@ -148,6 +148,9 @@ EXPORT void sim_enc(uint32_t e, int32_t steps)  /* ENC_*: 0 SELECT 1 ALGORITHM 2
 }
 EXPORT void sim_midi(uint32_t st, uint32_t d1, uint32_t d2)   /* a MIDI message into the app's USB-MIDI in */
 {
+#ifdef MIDI_RT_HOOK
+    if (st >= 0xF8u && st != 0xFEu) MIDI_RT_HOOK(st);   /* (as usb.c: clock and transport as they arrive) */
+#endif
     if (st < 0x80u || st == 0xF0u || st == 0xF7u || st == 0xFEu || mq_w - mq_r >= 64u) return;
     mq[mq_w % 64u][0] = (uint8_t)st; mq[mq_w % 64u][1] = (uint8_t)(d1 & 0x7Fu); mq[mq_w % 64u][2] = (uint8_t)(d2 & 0x7Fu);
     mq_w++;

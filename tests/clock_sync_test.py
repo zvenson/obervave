@@ -3,6 +3,7 @@
 # a whole number of 48-frame steps, with a millisecond of jitter as USB / TRS bring), and the sequencer's beats must
 # stay on the master's quarters: no drift that grows, the offset steady.
 #   python3 tests/clock_sync_test.py          (from the repo root; builds its own host app into build/host)
+#   python3 tests/clock_sync_test.py --stall  (the main loop reads MIDI only every other 100 ms, as while a page draws)
 import bisect, random, subprocess, sys
 from pathlib import Path
 
@@ -17,7 +18,7 @@ TRACE = "TRACE(k,a,b)=printf(\"%c %u %u %u\\n\",(k),(unsigned)(a),(unsigned)(b),
 def build():
     OUT.mkdir(parents=True, exist_ok=True)
     exe = OUT / "obervave-clock"
-    subprocess.run(["cc", "-O2", "-w", "-DOBV_HOST", "-D" + TRACE, '-DAPP_VER="test"',
+    subprocess.run(["cc", "-O2", "-w", "-DOBV_HOST"] + (["-DSTALLTEST"] if "--stall" in sys.argv else []) + [ "-D" + TRACE, '-DAPP_VER="test"',
                     "-I" + str(ROOT / "firmware/src"), "-I" + str(ROOT / "firmware/gen"),
                     "-o", str(exe), str(ROOT / "firmware/src/obervave.c")], check=True)
     return exe
