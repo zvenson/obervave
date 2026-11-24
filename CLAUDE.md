@@ -127,6 +127,12 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**3.5.4 (2026-11-24, tag v3.5.4, FM-1_9535, SMK-37 _9535; issue #46 "loses sync when browsing pages"):** MIDI clock /
+START / CONTINUE / STOP handled as they arrive (`midi_rt()` from usb.c / midi_uart.c in TIMER5), not when the main loop
+reads the queue after a page draw (tests/clock_sync_test.py --stall). Installed on the user's FM-1 (via the Mac) and
+released on the user's go; the clock while flipping pages not yet tried on the device. The VIBE's runtime got the same
+(kernel rawmidi timestamps, vibe-host on the VIBE 24.11., source uncommitted in vibe-sdk) and the Web Player (live).
+
 **3.5.3 (2026-11-23, tag v3.5.3, FM-1_9535; the SMK-37 packages 3.5.3 too, the first since 3.3-beta; released on the user's
 go without a device test):** the pitch bend slews (`bend_sm` in part_t, Q16, tau 16 blocks = 5.8 ms; tests/bend.txt): a
 7-bit MIDI bend or the SMK's wheel (~100 positions a side) stepped audibly at a wide BEND range. SMKSYNTH (an SMK-37
