@@ -3,6 +3,15 @@
 OberVave for the M-VAVE FM-1 (and, as a beta, the M-Vave SMK-37). Newest first. Each release is on
 [GitHub](https://github.com/zvenson/obervave/releases) and on [the Firmware Hub](https://thefirmwarehub.com/firmware/obervave/).
 
+## 3.5.4 – 2026-11-24
+
+- **Stays in sync while you browse the pages:** with an external MIDI clock, switching pages (SEQ, MIXER, FX ...)
+  pulled the sequencer off the master's beat. A page change redraws the whole screen, and OberVave only looked at the
+  clock once the drawing was done, so the ticks arrived late and bunched up. Clock, START, CONTINUE and STOP are now
+  taken the moment they arrive (USB and the TRS jack), whatever the screen is doing (#46, thanks dmochen).
+- The same fix for OberVave on the VIBE FM (in its runtime) and in the Web Player.
+- Identity `FM-1_9535` (as 3.5); SMK-37 `_9535`.
+
 ## 3.5.3 – 2026-11-23
 
 - **Smooth pitch bend:** the bend now glides over a few milliseconds instead of jumping to each new value. A wheel

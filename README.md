@@ -13,7 +13,8 @@ its sounds and its mix. 99 programs (70 factory sounds).
 
 <p align="center"><img src="docs/screen.png" width="240" alt="OberVave's screen: program 01 DARK ARP, the ARP page with four knobs, the scope, eight voice LEDs"></p>
 
-> **Released: 3.5.3** (`docs/firmware/obervave-3.5.3.fwsc`, identity `FM-1_9535`; SMK-37 in `docs/firmware/smk37`): a
+> **Released: 3.5.4** (`docs/firmware/obervave-3.5.4.fwsc`, identity `FM-1_9535`; SMK-37 in `docs/firmware/smk37`): **stays
+> in sync with an external clock while you switch pages** (#46, thanks dmochen). 3.5.3: a
 > **smooth pitch bend** (no more steps from a coarse wheel). 3.5.2: **locked to an external MIDI
 > clock**, no more drift (#25, thanks adub671). 3.5.1: MASTER's VOLUME, DJ FILTER, DRIVE and COMP work as you turn
 > them (#19, thanks dmochen). 3.5 brought **saving made simple**. SAVE opens
