@@ -127,6 +127,10 @@ GPL-3.0. Identity `FM-1_95N`. Name by the user ("OberVave": Ober... + M-VAVE).
 
 ## Status (2026-10-13, third session)
 
+**3.5.5 (2026-11-27, tag v3.5.5, FM-1_9535, SMK-37 _9535):** the newer FM-1s' screen – M-VAVE's ST7789V register
+values in M-VAVE's order in lcd.c (as Dinghy 0.6.1, after Jake Handy's h1); Dinghy 0.6.1 confirmed on a newer FM-1 by
+Sven's tester, released on the user's go.
+
 **3.5.4 (2026-11-24, tag v3.5.4, FM-1_9535, SMK-37 _9535; issue #46 "loses sync when browsing pages"):** MIDI clock /
 START / CONTINUE / STOP handled as they arrive (`midi_rt()` from usb.c / midi_uart.c in TIMER5), not when the main loop
 reads the queue after a page draw (tests/clock_sync_test.py --stall). Installed on the user's FM-1 (via the Mac) and

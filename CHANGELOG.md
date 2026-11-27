@@ -3,13 +3,15 @@
 OberVave for the M-VAVE FM-1 (and, as a beta, the M-Vave SMK-37). Newest first. Each release is on
 [GitHub](https://github.com/zvenson/obervave/releases) and on [the Firmware Hub](https://thefirmwarehub.com/firmware/obervave/).
 
-## 3.5.5 – coming (being tested on a newer FM-1)
+## 3.5.5 – 2026-11-27
 
 - **The newer FM-1s' screen:** on the units with the FM-1 / M-VAVE logo under the screen (most with the UC25HQ80 flash,
   0xB36014) the colours came out washed out, without reds, or the screen stayed blank. OberVave now sends the display
   M-VAVE's own settings, in M-VAVE's order (supplies, VCOM, 60 Hz, both gamma curves …) instead of leaving them at the
   panel's defaults. The first FM-1s look as before. As in Dinghy 0.6.1, after Jake Handy's h1 –
-  [why and how](https://github.com/zvenson/dinghy/blob/main/docs/NEWER-FM1-SCREEN.md).
+  [why and how](https://github.com/zvenson/dinghy/blob/main/docs/NEWER-FM1-SCREEN.md). Confirmed on a newer FM-1 with Dinghy 0.6.1's
+  identical setup.
+- Identity `FM-1_9535` (as 3.5); SMK-37 `_9535`.
 
 ## 3.5.4 – 2026-11-24
 
